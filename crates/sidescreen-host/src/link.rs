@@ -7,7 +7,9 @@ use std::fmt;
 use std::thread;
 use std::time::Duration;
 
-use sidescreen_proto::{FrameHeader, HELLO_LEN, HOSTFS_MAGIC, Response, USB_RESPONSE_LEN};
+use sidescreen_proto::{
+    FrameHeader, HELLO_LEN, HOSTFS_MAGIC, RAW_FRAME_LEN, Response, USB_RESPONSE_LEN,
+};
 
 /// Why a transfer on the pipe failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +56,8 @@ pub enum LinkError {
     Pipe(PipeError),
     /// The PSP sent something that is not a valid response.
     Protocol(sidescreen_proto::Error),
+    /// The image has a size the frame cannot carry; for a raw frame, anything but one screen.
+    RawSize(usize),
 }
 
 impl fmt::Display for LinkError {
@@ -61,6 +65,7 @@ impl fmt::Display for LinkError {
         match self {
             Self::Pipe(error) => write!(f, "USB transfer failed: {error}"),
             Self::Protocol(error) => write!(f, "invalid answer from the PSP: {error}"),
+            Self::RawSize(size) => write!(f, "an image of {size} bytes does not fit a frame"),
         }
     }
 }
@@ -121,14 +126,34 @@ impl<P: Pipe> Link<P> {
     /// # Errors
     ///
     /// [`LinkError`] if a transfer fails or the response is not valid.
-    ///
-    /// # Panics
-    ///
-    /// Never in practice: a JPEG for a 480x272 screen is far below 4 GiB.
     pub fn send_jpeg(&mut self, jpeg: &[u8]) -> Result<Response, LinkError> {
-        let size = u32::try_from(jpeg.len()).expect("a JPEG frame is far below 4 GiB");
-        write_all(&mut self.pipe, &FrameHeader::jpeg(size).encode())?;
-        write_all(&mut self.pipe, jpeg)?;
+        self.send(FrameHeader::jpeg, jpeg)
+    }
+
+    /// Sends one uncompressed frame, `RAW_FRAME_LEN` bytes of blue, green, red pixels with the
+    /// rows from the bottom up, and returns what the PSP reports back.
+    ///
+    /// # Errors
+    ///
+    /// [`LinkError::RawSize`] if `bgr` is not exactly one frame, otherwise as
+    /// [`send_jpeg`](Self::send_jpeg).
+    pub fn send_raw(&mut self, bgr: &[u8]) -> Result<Response, LinkError> {
+        if bgr.len() != RAW_FRAME_LEN {
+            return Err(LinkError::RawSize(bgr.len()));
+        }
+        self.send(FrameHeader::uncompressed, bgr)
+    }
+
+    fn send(
+        &mut self,
+        header: impl FnOnce(u32) -> FrameHeader,
+        image: &[u8],
+    ) -> Result<Response, LinkError> {
+        // A frame for a 480x272 screen is far below 4 GiB; a larger one is refused rather than
+        // cut short.
+        let size = u32::try_from(image.len()).map_err(|_| LinkError::RawSize(image.len()))?;
+        write_all(&mut self.pipe, &header(size).encode())?;
+        write_all(&mut self.pipe, image)?;
 
         let mut response = [0; USB_RESPONSE_LEN];
         read_exact(&mut self.pipe, &mut response)?;
@@ -268,6 +293,33 @@ mod tests {
         let writes = &link.pipe.writes;
         assert_eq!(writes[2], FrameHeader::jpeg(4).encode());
         assert_eq!(writes[3], [0xFF, 0xD8, 0xFF, 0xD9]);
+    }
+
+    #[test]
+    fn raw_frame_goes_out_with_the_uncompressed_header() {
+        let pipe = Scripted {
+            write_answers: VecDeque::from([Ok(4), Ok(HELLO_LEN)]),
+            read_answers: VecDeque::from([Ok(valid_response(0))]),
+            ..Scripted::default()
+        };
+        let mut link = open(pipe).unwrap();
+        let frame = vec![7; RAW_FRAME_LEN];
+        link.send_raw(&frame).unwrap();
+
+        let writes = &link.pipe.writes;
+        assert_eq!(writes[2], FrameHeader::uncompressed(391_680).encode());
+        assert_eq!(writes[3].len(), RAW_FRAME_LEN);
+    }
+
+    #[test]
+    fn raw_frame_of_the_wrong_size_is_refused_before_anything_is_sent() {
+        let pipe = Scripted {
+            write_answers: VecDeque::from([Ok(4), Ok(HELLO_LEN)]),
+            ..Scripted::default()
+        };
+        let mut link = open(pipe).unwrap();
+        assert_eq!(link.send_raw(&[0; 10]).unwrap_err(), LinkError::RawSize(10));
+        assert_eq!(link.pipe.writes.len(), 2, "only the hello was written");
     }
 
     #[test]
