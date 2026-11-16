@@ -223,6 +223,9 @@ pub struct Capturer {
     duplication: IDXGIOutputDuplication,
     staging: ID3D11Texture2D,
     name: String,
+    /// The last picture of the screen without the pointer. The pointer is drawn onto a copy of
+    /// it each time, so the place the pointer left does not keep its image.
+    desktop: Frame,
     width: u32,
     height: u32,
     pointer: Pointer,
@@ -320,6 +323,7 @@ impl Capturer {
                 duplication,
                 staging,
                 name: monitor_name(output),
+                desktop: Frame::default(),
                 width,
                 height,
                 pointer: Pointer::default(),
@@ -403,11 +407,13 @@ impl Capturer {
                 self.context
                     .Map(&self.staging, 0, D3D11_MAP_READ, 0, Some(&raw mut mapped))?;
                 let row_bytes = self.width as usize * 4;
-                frame.width = self.width;
-                frame.height = self.height;
-                frame.bgra.resize(row_bytes * self.height as usize, 0);
+                self.desktop.width = self.width;
+                self.desktop.height = self.height;
+                self.desktop
+                    .bgra
+                    .resize(row_bytes * self.height as usize, 0);
                 let source = mapped.pData.cast::<u8>().cast_const();
-                for (row, out) in frame.bgra.chunks_exact_mut(row_bytes).enumerate() {
+                for (row, out) in self.desktop.bgra.chunks_exact_mut(row_bytes).enumerate() {
                     let line = std::slice::from_raw_parts(
                         source.add(row * mapped.RowPitch as usize),
                         row_bytes,
@@ -418,7 +424,7 @@ impl Capturer {
             }
             self.update_pointer(info)?;
         }
-        draw_pointer(frame, &self.pointer);
+        compose(frame, &self.desktop, &self.pointer);
         Ok(())
     }
 
@@ -463,6 +469,18 @@ impl Capturer {
         });
         Ok(())
     }
+}
+
+/// Makes `frame` the `desktop` picture with the pointer on top.
+///
+/// Starting from the clean picture each time matters: Windows sends a new picture only when the
+/// screen changes, and only a position when the pointer alone moves. Drawing onto the previous
+/// frame would leave every earlier pointer position behind as a trail.
+fn compose(frame: &mut Frame, desktop: &Frame, pointer: &Pointer) {
+    frame.width = desktop.width;
+    frame.height = desktop.height;
+    frame.bgra.clone_from(&desktop.bgra);
+    draw_pointer(frame, pointer);
 }
 
 /// Blends the colour pointer into `frame` at its position, clipped to the frame.
@@ -580,6 +598,31 @@ mod tests {
         draw_pointer(&mut frame, &pointer_at(100, 100));
         assert_eq!(pixel(&frame, 3, 3), [255, 255, 255]);
         assert_eq!(pixel(&frame, 0, 3), [128, 128, 128]);
+    }
+
+    #[test]
+    fn pointer_that_moved_leaves_no_trail() {
+        let desktop = blank(4, 4);
+        let mut frame = Frame::default();
+        compose(&mut frame, &desktop, &pointer_at(0, 0));
+        assert_eq!(pixel(&frame, 0, 0), [255, 255, 255]);
+
+        // The pointer alone moves: the picture of the screen is the same.
+        compose(&mut frame, &desktop, &pointer_at(2, 2));
+        assert_eq!(
+            pixel(&frame, 0, 0),
+            [0, 0, 0],
+            "the old position is clean again"
+        );
+        assert_eq!(pixel(&frame, 2, 2), [255, 255, 255]);
+    }
+
+    #[test]
+    fn composing_does_not_change_the_clean_picture() {
+        let desktop = blank(4, 4);
+        let mut frame = Frame::default();
+        compose(&mut frame, &desktop, &pointer_at(1, 1));
+        assert_eq!(pixel(&desktop, 1, 1), [0, 0, 0]);
     }
 
     #[test]
