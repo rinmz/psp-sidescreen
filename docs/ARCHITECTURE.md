@@ -63,7 +63,10 @@ stored.
   start, so a resolution change went unnoticed and the picture froze; the PSP then dimmed
   itself because no new frames arrived. (2) Once Windows reports the loss, remaking the capture
   beside the old one fails at once, because the old one keeps Windows describing the monitor as
-  it was; it works when the old capture is dropped first (`Capturer::reopen`). Both are hardware
+  it was; it works when the old capture is dropped first. Both are hardware
   behaviour and could not be put in a unit test; the size comparison is tested.
+  Any error from the capture (a resolution change, Win+P, `DXGI_ERROR_INVALID_CALL`) is handled
+  the same way: the capture is dropped, the last picture keeps being sent so the PSP does not
+  go into power saving, and the monitor is looked for every half second until it is back.
 - **Independent of Pane.** The host can capture any monitor, including one that another
   program owns, without changing that program or its driver.

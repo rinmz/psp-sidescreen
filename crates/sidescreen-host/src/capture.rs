@@ -327,21 +327,6 @@ impl Capturer {
         }
     }
 
-    /// Ends this capture and starts a new one of the same monitor, for example after a change of
-    /// resolution.
-    ///
-    /// The old capture is released first. While it is alive Windows goes on describing the
-    /// monitor as it was, so a new capture made beside it fails at once.
-    ///
-    /// # Errors
-    ///
-    /// As [`open_by_name`](Self::open_by_name).
-    pub fn reopen(self) -> Result<Self, CaptureError> {
-        let name = self.name.clone();
-        drop(self);
-        Self::open_by_name(&name)
-    }
-
     /// Windows' name for the captured monitor, such as `\.\DISPLAY5`.
     #[must_use]
     pub fn name(&self) -> &str {

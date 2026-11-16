@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use sidescreen_host::capture::{self, CaptureError, Capturer, Check, Frame};
+use sidescreen_host::capture::{self, Capturer, Check, Frame};
 use sidescreen_host::convert::{Converter, Picture, Quality};
 use sidescreen_host::dpi;
 use sidescreen_host::link::Link;
@@ -28,6 +28,8 @@ const HELLO_SETTLE: Duration = Duration::from_millis(500);
 const CAPTURE_WAIT_MS: u32 = 33;
 /// A picture is sent again after this long without change, so the PSP knows the host is alive.
 const KEEP_ALIVE: Duration = Duration::from_millis(500);
+/// How often to look for a monitor that went away.
+const RETRY_EVERY: Duration = Duration::from_millis(500);
 /// How often the captured monitor is looked at again, to notice a change of resolution.
 const RECHECK_EVERY: Duration = Duration::from_millis(500);
 /// Quality when none is given.
@@ -176,9 +178,12 @@ fn run(options: &[&str]) -> Result<(), Box<dyn Error>> {
         None => options.monitor,
     };
 
-    let mut capturer = Capturer::open(index)?;
-    let (width, height) = capturer.size();
+    let first = Capturer::open(index)?;
+    let (width, height) = first.size();
     println!("showing monitor {index} ({width}x{height}); press Ctrl+C to stop");
+    let mut name = first.name().to_owned();
+    // `None` while the monitor is away; see the start of the loop.
+    let mut capturer = Some(first);
 
     let mut converter = Converter::new(options.quality);
     let mut frame = Frame::default();
@@ -186,39 +191,64 @@ fn run(options: &[&str]) -> Result<(), Box<dyn Error>> {
     let mut sent = 0_u32;
     let mut window = Instant::now();
     let mut last_check = Instant::now();
+    let mut last_retry = Instant::now();
 
     while !stop.load(Ordering::SeqCst) {
-        let changed = match capturer.next_frame(CAPTURE_WAIT_MS, &mut frame) {
+        let Some(active) = capturer.as_mut() else {
+            // The monitor is away: a change of resolution, Win+P, a mode change that ended the
+            // capture. Keep the last picture on the PSP so it does not go into power saving,
+            // and look for the monitor again. The old capture was dropped before this, which
+            // Windows needs before it will describe the monitor as it is now.
+            std::thread::sleep(Duration::from_millis(u64::from(CAPTURE_WAIT_MS)));
+            if !frame.bgra.is_empty() && last_sent.elapsed() >= KEEP_ALIVE {
+                send_frame(&mut link, &mut converter, &frame)?;
+                last_sent = Instant::now();
+            }
+            if last_retry.elapsed() >= RETRY_EVERY {
+                last_retry = Instant::now();
+                if options.virtual_monitor {
+                    // Its name changes whenever the driver recreates it.
+                    if let Some(current) = monitor::find_virtual_monitor() {
+                        name = current;
+                    }
+                }
+                if let Ok(back) = Capturer::open_by_name(&name) {
+                    let (width, height) = back.size();
+                    println!("capturing {name} again ({width}x{height})");
+                    capturer = Some(back);
+                }
+            }
+            continue;
+        };
+
+        let changed = match active.next_frame(CAPTURE_WAIT_MS, &mut frame) {
             Ok(changed) => changed,
-            Err(CaptureError::AccessLost) => {
-                // A secure desktop or a mode change ends the duplication; start it again.
-                println!("the capture was lost; starting it again");
-                std::thread::sleep(Duration::from_millis(250));
-                capturer = capturer.reopen()?;
+            Err(error) => {
+                println!("the capture was lost ({error}); waiting for the monitor");
+                capturer = None;
                 continue;
             }
-            Err(error) => return Err(error.into()),
         };
         if last_check.elapsed() >= RECHECK_EVERY {
             last_check = Instant::now();
-            match capturer.check() {
+            match active.check() {
                 Check::Unchanged => {}
                 Check::Resized => {
-                    capturer = capturer.reopen()?;
-                    let (width, height) = capturer.size();
-                    println!("the monitor is now {width}x{height}; capturing it again");
+                    println!("the monitor changed size; capturing it again");
+                    capturer = None;
                     continue;
                 }
-                Check::Gone => return Err("the monitor left the desktop".into()),
+                Check::Gone => {
+                    println!("the monitor left the desktop; waiting for it");
+                    capturer = None;
+                    continue;
+                }
             }
         }
         if frame.bgra.is_empty() || !(changed || last_sent.elapsed() >= KEEP_ALIVE) {
             continue;
         }
-        match converter.convert(&frame)? {
-            Picture::Jpeg(jpeg) => link.send_jpeg(jpeg)?,
-            Picture::Raw(bgr) => link.send_raw(bgr)?,
-        };
+        send_frame(&mut link, &mut converter, &frame)?;
         last_sent = Instant::now();
         sent += 1;
 
@@ -229,5 +259,18 @@ fn run(options: &[&str]) -> Result<(), Box<dyn Error>> {
         }
     }
     println!("stopped");
+    Ok(())
+}
+
+/// Converts `frame` and sends it to the PSP.
+fn send_frame(
+    link: &mut Link<UsbPipe>,
+    converter: &mut Converter,
+    frame: &Frame,
+) -> Result<(), Box<dyn Error>> {
+    match converter.convert(frame)? {
+        Picture::Jpeg(jpeg) => link.send_jpeg(jpeg)?,
+        Picture::Raw(bgr) => link.send_raw(bgr)?,
+    };
     Ok(())
 }
