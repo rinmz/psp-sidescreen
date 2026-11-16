@@ -2,6 +2,8 @@ import {
   DEFAULT_SETTINGS,
   type Backend,
   type ControlCatalog,
+  type PspInstall,
+  type SetupStatus,
   type Monitor,
   type SessionState,
   type Settings,
@@ -46,6 +48,21 @@ const catalog: ControlCatalog = {
   ],
 };
 
+/** The mock plays a PSP that is connected after a few looks, then takes the program. */
+let setupLooks = 0;
+let programOnStick = false;
+
+function mockSetup(): SetupStatus {
+  setupLooks += 1;
+  const connected = setupLooks > 2;
+  return {
+    virtualDisplay: true,
+    pspDriver: connected ? "ready" : "not-connected",
+    memoryStick: connected ? "E:\\" : null,
+    programOnStick: connected && programOnStick,
+  };
+}
+
 const listeners = new Set<(state: SessionState) => void>();
 let timers: number[] = [];
 
@@ -81,6 +98,12 @@ export const mockBackend: Backend = {
   },
   listMonitors: () => Promise.resolve(monitors),
   listControls: () => Promise.resolve(catalog),
+  getSetup: () => Promise.resolve(mockSetup()),
+  installPspProgram: () => {
+    programOnStick = true;
+    const done: PspInstall = { drive: "E:\\", files: 19, keptSettings: false };
+    return Promise.resolve(done);
+  },
   start: () => {
     clearTimers();
     emit({ kind: "starting" });

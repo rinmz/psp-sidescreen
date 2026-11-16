@@ -83,6 +83,9 @@ pub(crate) struct Settings {
     /// A file from before the controls existed has none; they are then off.
     #[serde(default)]
     pub(crate) controls: ControlSettings,
+    /// Whether the person has been through the Setup page. Until then it is shown first.
+    #[serde(default, rename = "setupDone")]
+    pub(crate) setup_done: bool,
 }
 
 impl Default for Settings {
@@ -93,6 +96,7 @@ impl Default for Settings {
             monitor: 0,
             quality: QualityName::Medium,
             controls: ControlSettings::default(),
+            setup_done: false,
         }
     }
 }
@@ -167,6 +171,7 @@ mod tests {
                 analog_mouse: true,
                 buttons: BTreeMap::from([("cross".to_owned(), "enter".to_owned())]),
             },
+            setup_done: true,
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -204,6 +209,18 @@ mod tests {
         let settings: Settings = serde_json::from_str(text).unwrap();
         assert!(!settings.controls.enabled);
         assert!(settings.controls.buttons.is_empty());
+    }
+
+    #[test]
+    fn setup_is_shown_until_the_person_has_been_through_it() {
+        let text = r#"{"mode":"extended","size":"1366x768","monitor":0,"quality":"medium"}"#;
+        let settings: Settings = serde_json::from_str(text).unwrap();
+        assert!(!settings.setup_done);
+        let done: Settings = serde_json::from_str(
+            r#"{"mode":"extended","size":"1366x768","monitor":0,"quality":"medium","setupDone":true}"#,
+        )
+        .unwrap();
+        assert!(done.setup_done);
     }
 
     #[test]

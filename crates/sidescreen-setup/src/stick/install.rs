@@ -25,6 +25,16 @@ pub fn is_memory_stick(root: &Path) -> bool {
     root.join("PSP").is_dir()
 }
 
+/// Whether the PSP program is on the Memory Stick at `stick` already.
+#[must_use]
+pub fn program_is_installed(stick: &Path) -> bool {
+    TARGET
+        .iter()
+        .fold(stick.to_path_buf(), |path, part| path.join(part))
+        .join("EBOOT.PBP")
+        .is_file()
+}
+
 /// Copies the PSP program from `package` (the folder that holds `PSP/GAME/Sidescreen`) to the
 /// Memory Stick at `stick`.
 ///
@@ -108,6 +118,20 @@ mod tests {
         stick(&dir);
         assert!(is_memory_stick(&dir));
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn the_program_is_found_on_a_stick_only_once_it_has_been_copied() {
+        let (source, target) = (temp_dir("found-source"), temp_dir("found-target"));
+        package(&source);
+        stick(&target);
+        assert!(!program_is_installed(&target));
+
+        install_package(&source, &target).unwrap();
+
+        assert!(program_is_installed(&target));
+        fs::remove_dir_all(source).unwrap();
+        fs::remove_dir_all(target).unwrap();
     }
 
     #[test]

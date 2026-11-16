@@ -8,7 +8,7 @@ mod install;
 
 use std::path::{Path, PathBuf};
 
-pub use install::{Installed, install_package, is_memory_stick};
+pub use install::{Installed, install_package, is_memory_stick, program_is_installed};
 
 use crate::error::Error;
 

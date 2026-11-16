@@ -25,6 +25,24 @@ export interface ControlCatalog {
   actions: Choice[];
 }
 
+/** What the Setup page shows about the machine and the PSP. */
+export interface SetupStatus {
+  /** Whether the virtual display driver is installed. */
+  virtualDisplay: boolean;
+  pspDriver: "ready" | "needs-driver" | "not-connected";
+  /** The drive of a connected PSP Memory Stick, such as `E:\`; null when there is none. */
+  memoryStick: string | null;
+  /** Whether the PSP program is on that Memory Stick already. */
+  programOnStick: boolean;
+}
+
+/** What putting the program on the PSP did. */
+export interface PspInstall {
+  drive: string;
+  files: number;
+  keptSettings: boolean;
+}
+
 export interface Settings {
   /** `extended`: the PSP gets a screen of its own. `mirror`: it shows an existing monitor. */
   mode: Mode;
@@ -34,6 +52,8 @@ export interface Settings {
   monitor: number;
   quality: Quality;
   controls: ControlSettings;
+  /** Whether the person has been through the Setup page; until then it is shown first. */
+  setupDone: boolean;
 }
 
 export interface Monitor {
@@ -58,6 +78,9 @@ export interface Backend {
   saveSettings(settings: Settings): Promise<void>;
   listMonitors(): Promise<Monitor[]>;
   listControls(): Promise<ControlCatalog>;
+  getSetup(): Promise<SetupStatus>;
+  /** Puts the PSP program on the Memory Stick; rejects with a message for the person. */
+  installPspProgram(): Promise<PspInstall>;
   start(): Promise<void>;
   stop(): Promise<void>;
   /** Calls `listener` with every change of state; returns a function that stops listening. */
@@ -71,6 +94,7 @@ export const DEFAULT_SETTINGS: Settings = {
   monitor: 0,
   quality: "medium",
   controls: { enabled: false, analogMouse: false, buttons: {} },
+  setupDone: false,
 };
 
 /** Sizes the virtual display driver offers. */

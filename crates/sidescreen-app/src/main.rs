@@ -9,6 +9,7 @@
 mod commands;
 mod control;
 mod settings;
+mod setup;
 mod tray;
 
 use tauri::{Manager, RunEvent, WindowEvent};
@@ -28,6 +29,8 @@ fn main() {
             commands::list_controls,
             commands::start_session,
             commands::stop_session,
+            setup::get_setup,
+            setup::install_psp_program,
         ])
         .setup(|app| {
             tray::create(app.handle())?;

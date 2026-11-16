@@ -1,12 +1,13 @@
-import { Gamepad2, Info, Monitor, type LucideIcon } from "lucide-react";
+import { Gamepad2, Info, ListChecks, Monitor, type LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import badgeUrl from "../assets/logo-badge.png";
 import markUrl from "../assets/logo-mark.png";
 
-export type Section = "display" | "controls" | "about";
+export type Section = "setup" | "display" | "controls" | "about";
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
+  { id: "setup", label: "Setup", icon: ListChecks },
   { id: "display", label: "Display", icon: Monitor },
   { id: "controls", label: "Controls", icon: Gamepad2 },
   { id: "about", label: "About", icon: Info },

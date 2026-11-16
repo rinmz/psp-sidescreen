@@ -6,8 +6,10 @@ import {
   type Backend,
   type ControlCatalog,
   type Monitor,
+  type PspInstall,
   type SessionState,
   type Settings,
+  type SetupStatus,
 } from "../lib/backend";
 
 export interface Sidescreen {
@@ -21,6 +23,16 @@ export interface Sidescreen {
   update: (change: Partial<Settings>) => void;
   start: () => void;
   stop: () => void;
+  /** Looks at what is installed and whether a PSP is connected. */
+  getSetup: () => Promise<SetupStatus>;
+  installPspProgram: () => Promise<PspInstall>;
+}
+
+/** The backend, which exists once the window has loaded; the pages are shown only then. */
+function requireBackend(backend: { current: Backend | null }): Backend {
+  if (!backend.current)
+    throw new Error("the window used the program before it was ready");
+  return backend.current;
 }
 
 /** The state of the window: the settings, the monitors, and where the session has got to. */
@@ -75,6 +87,23 @@ export function useSidescreen(): Sidescreen {
 
   const start = useCallback(() => void backend.current?.start(), []);
   const stop = useCallback(() => void backend.current?.stop(), []);
+  const getSetup = useCallback(() => requireBackend(backend).getSetup(), []);
+  const installPspProgram = useCallback(
+    () => requireBackend(backend).installPspProgram(),
+    [],
+  );
 
-  return { ready, settings, monitors, catalog, state, version, update, start, stop };
+  return {
+    ready,
+    settings,
+    monitors,
+    catalog,
+    state,
+    version,
+    update,
+    start,
+    stop,
+    getSetup,
+    installPspProgram,
+  };
 }
