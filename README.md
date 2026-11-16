@@ -7,6 +7,15 @@ Use a PlayStation Portable as a low-latency side display for a Windows PC.
 Working prototype. The host shows a monitor, or a virtual monitor of its own, on a PSP that is
 running the PSPdisp 0.6 application. See [the roadmap](docs/ROADMAP.md).
 
+## Install
+
+Run the installer (`PSP Sidescreen_<version>_x64-setup.exe`). It is a normal Windows setup: it
+installs the program and the drivers it needs, and nothing else has to be downloaded. The first
+time the program opens it asks you to connect the PSP and puts the program on it.
+
+See [docs/SIGNING.md](docs/SIGNING.md) for the one driver that is not signed yet, and
+[docs/BUILDING.md](docs/BUILDING.md) to build the installer yourself.
+
 ## Use
 
 Start the program (`psp-sidescreen.exe`): a window opens with a **Start** button, what the PSP

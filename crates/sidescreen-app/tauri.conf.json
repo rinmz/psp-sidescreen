@@ -28,12 +28,34 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "publisher": "rinmz",
+    "copyright": "Copyright (c) 2026 rinmz",
+    "category": "Utility",
+    "shortDescription": "Use a PSP as a second screen for your PC",
+    "longDescription": "PSP Sidescreen turns a PlayStation Portable into a second screen for a Windows PC, over USB. The PSP's buttons can also run shortcuts on the PC.",
+    "license": "MIT",
+    "licenseFile": "../../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": ["resources/**/*"],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "perMachine",
+        "installerIcon": "icons/icon.ico",
+        "sidebarImage": "../../installer/sidebar.bmp",
+        "headerImage": "../../installer/header.bmp",
+        "installerHooks": "../../installer/hooks.nsh",
+        "displayLanguageSelector": false,
+        "languages": ["English", "Turkish"],
+        "startMenuFolder": "PSP Sidescreen",
+        "compression": "lzma"
+      }
+    }
   }
 }

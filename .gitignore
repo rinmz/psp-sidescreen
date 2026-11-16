@@ -18,3 +18,7 @@
 
 # Tauri generates these when it builds
 /crates/sidescreen-app/gen/
+
+# Gathered by scripts/build-installer.ps1
+/crates/sidescreen-app/resources/
+/drivers/vdd/

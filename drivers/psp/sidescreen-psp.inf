@@ -1,0 +1,42 @@
+; PSP Sidescreen: lets Windows use its own WinUSB driver for the PSP while the PSP program runs.
+;
+; The PSP program shows up as a USB device with Sony's vendor id. Windows has the driver such a
+; device needs, WinUSB, but has to be told that this device uses it; that is all this file does.
+; It carries no driver code of its own.
+;
+; Windows only accepts the file once its catalog (sidescreen-psp.cat) is signed. See
+; docs/SIGNING.md.
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = USBDevice
+ClassGUID   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
+Provider    = %ProviderName%
+CatalogFile = sidescreen-psp.cat
+DriverVer   = 11/16/2026,1.0.0.0
+
+[Manufacturer]
+%ProviderName% = Standard, NTamd64
+
+[Standard.NTamd64]
+%DeviceName% = USB_Install, USB\VID_054C&PID_01CA
+%DeviceName% = USB_Install, USB\VID_054C&PID_01C9
+
+[USB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[USB_Install.HW]
+AddReg = Dev_AddReg
+
+[Dev_AddReg]
+; The interface GUID the PSP program's PC side has always used, so other tools find the device.
+HKR,,DeviceInterfaceGUIDs,0x10000,"{9ef8fcc2-f024-4fbd-ad39-50fcdbb81a95}"
+
+[Strings]
+ProviderName = "PSP Sidescreen"
+DeviceName   = "PSP Sidescreen (USB)"

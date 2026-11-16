@@ -7,7 +7,8 @@
 //! - `sidescreen-setup install-psp <package folder> [drive]` puts the program on the PSP.
 //!
 //! The exit code says what happened, so that the installer can tell the person what to do:
-//! see the `EXIT_` constants.
+//! see the `EXIT_` constants. Success is 0; a driver that was already there is 6, so that an
+//! uninstaller removes only what its installer put on the machine.
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -25,6 +26,8 @@ const EXIT_NOT_ELEVATED: u8 = 3;
 const EXIT_UNSIGNED: u8 = 4;
 /// There is no Memory Stick to copy to, or the choice is not clear.
 const EXIT_NO_STICK: u8 = 5;
+/// Nothing was installed because the driver was already there and working.
+const EXIT_ALREADY: u8 = 6;
 
 const USAGE: &str = "usage: sidescreen-setup status | install-vdd <folder> | uninstall-vdd | \
 install-psp-driver <inf> | install-psp <folder> [drive]";
@@ -33,19 +36,21 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let result = match args.as_slice() {
-        ["status"] => status(),
+        ["status"] => status().map(|()| 0),
         ["install-vdd", folder] => install_vdd(Path::new(folder)),
-        ["uninstall-vdd"] => uninstall_vdd(),
+        ["uninstall-vdd"] => uninstall_vdd().map(|()| 0),
         ["install-psp-driver", inf] => install_psp_driver(Path::new(inf)),
-        ["install-psp", folder] => install_psp(Path::new(folder), None),
-        ["install-psp", folder, drive] => install_psp(Path::new(folder), Some(Path::new(drive))),
+        ["install-psp", folder] => install_psp(Path::new(folder), None).map(|()| 0),
+        ["install-psp", folder, drive] => {
+            install_psp(Path::new(folder), Some(Path::new(drive))).map(|()| 0)
+        }
         _ => {
             eprintln!("{USAGE}");
             return ExitCode::from(EXIT_USAGE);
         }
     };
     match result {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(code) => ExitCode::from(code),
         Err(error) => {
             eprintln!("error: {error}");
             ExitCode::from(exit_code(&error))
@@ -86,22 +91,26 @@ fn status() -> Result<(), Error> {
     Ok(())
 }
 
-fn install_vdd(folder: &Path) -> Result<(), Error> {
+fn install_vdd(folder: &Path) -> Result<u8, Error> {
     let package = vdd::Package::open(folder)?;
-    match vdd::install(&package)? {
-        Outcome::AlreadyInstalled => println!("the virtual display driver was already installed"),
+    Ok(match vdd::install(&package)? {
+        Outcome::AlreadyInstalled => {
+            println!("the virtual display driver was already installed");
+            EXIT_ALREADY
+        }
         Outcome::Installed {
             reboot_required: false,
         } => {
             println!("the virtual display driver is installed");
+            0
         }
         Outcome::Installed {
             reboot_required: true,
         } => {
             println!("the virtual display driver is installed; Windows asks for a restart");
+            0
         }
-    }
-    Ok(())
+    })
 }
 
 fn uninstall_vdd() -> Result<(), Error> {
@@ -110,7 +119,11 @@ fn uninstall_vdd() -> Result<(), Error> {
     Ok(())
 }
 
-fn install_psp_driver(inf: &Path) -> Result<(), Error> {
+fn install_psp_driver(inf: &Path) -> Result<u8, Error> {
+    if psp_driver::status()? == psp_driver::Status::Ready {
+        println!("the PSP driver is already working");
+        return Ok(EXIT_ALREADY);
+    }
     let installed = psp_driver::install(inf)?;
     println!(
         "the PSP driver is installed{}",
@@ -120,7 +133,7 @@ fn install_psp_driver(inf: &Path) -> Result<(), Error> {
             ""
         }
     );
-    Ok(())
+    Ok(0)
 }
 
 fn install_psp(package: &Path, drive: Option<&Path>) -> Result<(), Error> {
@@ -166,6 +179,7 @@ mod tests {
             EXIT_NOT_ELEVATED,
             EXIT_UNSIGNED,
             EXIT_NO_STICK,
+            EXIT_ALREADY,
         ];
         let mut sorted = codes.to_vec();
         sorted.sort_unstable();
