@@ -1,0 +1,53 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 builds the installer and publishes it as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  installer:
+    name: Build and publish the installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: The tag must match the version in the program
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          if ("v$version" -ne "${{ github.ref_name }}") {
+            throw "Tag ${{ github.ref_name }} does not match version $version in Cargo.toml"
+          }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build the installer
+        shell: pwsh
+        run: scripts/build-installer.ps1
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = Get-ChildItem 'target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Path "$($installer.FullName).sha256" -Value "$hash  $($installer.Name)"
+          $flags = @()
+          # Versions before 1.0 are announced as pre-releases.
+          if ("${{ github.ref_name }}" -match '^v0\.' -or "${{ github.ref_name }}" -match '-') { $flags += '--prerelease' }
+          gh release create "${{ github.ref_name }}" $installer.FullName "$($installer.FullName).sha256" `
+            --title "PSP Sidescreen ${{ github.ref_name }}" --generate-notes @flags
