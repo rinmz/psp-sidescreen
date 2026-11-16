@@ -8,3 +8,7 @@
 *.prx
 *.PBP
 *.SFO
+
+# Window (frontend)
+/app/node_modules/
+/app/dist/

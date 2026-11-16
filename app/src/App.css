@@ -1,0 +1,73 @@
+/* Scope class detection to src/: scanning the project root would walk Rust build output. */
+@import "tailwindcss" source(".");
+@import "./styles/theme.css";
+
+/* Register the colors of theme.css as Tailwind utilities (bg-brand, text-ink-2, ...). */
+@theme inline {
+  --color-brand: var(--color-brand);
+  --color-on-brand: var(--color-on-brand);
+  --color-text: var(--color-text);
+  --color-background: var(--color-background);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-moss: var(--color-moss);
+  --color-moss-wash: var(--color-moss-wash);
+  --color-warning-wash: var(--color-warning-wash);
+  --color-error-wash: var(--color-error-wash);
+  --color-wash: var(--color-wash);
+  --color-ink-2: var(--color-ink-2);
+  --color-ink-3: var(--color-ink-3);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+}
+
+@theme {
+  --font-ui:
+    system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Noto Sans",
+    sans-serif;
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise: rise 260ms var(--ease-glide);
+  --animate-drop: drop 160ms var(--ease-glide);
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+  @keyframes drop {
+    from {
+      opacity: 0;
+      translate: 0 -4px;
+    }
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The logo's PSP mark is a single dark shape; masking it lets it take the text color, so it
+   stays visible on the dark theme. */
+.logo-mark {
+  background-color: var(--color-text);
+  mask: var(--logo-mark) center / contain no-repeat;
+  -webkit-mask: var(--logo-mark) center / contain no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

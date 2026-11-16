@@ -1,0 +1,126 @@
+/* PSP Sidescreen colors: every color the app uses comes from here.
+ *
+ * The structure follows Handy's theme (https://github.com/cjpais/Handy, MIT): each themed color
+ * is written once as a light/dark pair, the active tokens below pick one, and `data-theme` or
+ * the operating system's preference decides which. Pick by job:
+ *   greys (ink-2, ink-3, line-strong, line, wash) for text, edges and fills;
+ *   brand for the logo's yellow, primary actions and the picked item, with on-brand for the
+ *   text that sits on it (white would not read on yellow);
+ *   moss / warning / error (+ -wash) for status.
+ */
+
+:root {
+  /* The yellow of the logo's badge, and the ink of its lettering. */
+  --light-color-brand: #ffc500;
+  --dark-color-brand: #ffc500;
+  --light-color-on-brand: #231f20;
+  --dark-color-on-brand: #231f20;
+
+  --light-color-text: #231f20;
+  --light-color-background: #fbfaf7;
+  --dark-color-text: #fbfaf7;
+  --dark-color-background: #2a2927;
+
+  /* Status colors. Each has a -wash tint below. */
+  --light-color-warning: #b45309;
+  --dark-color-warning: #fbbf24;
+  --light-color-error: #dc2626;
+  --dark-color-error: #f87171;
+  /* Success. Yellow already means "this is the brand", so it gets its own hue. */
+  --light-color-moss: #2f7d5b;
+  --dark-color-moss: #86c9a4;
+
+  --light-color-moss-wash: color-mix(
+    in srgb,
+    var(--light-color-moss) 12%,
+    var(--light-color-background)
+  );
+  --dark-color-moss-wash: color-mix(
+    in srgb,
+    var(--dark-color-moss) 14%,
+    var(--dark-color-background)
+  );
+  --light-color-warning-wash: color-mix(
+    in srgb,
+    var(--light-color-warning) 12%,
+    var(--light-color-background)
+  );
+  --dark-color-warning-wash: color-mix(
+    in srgb,
+    var(--dark-color-warning) 14%,
+    var(--dark-color-background)
+  );
+  --light-color-error-wash: color-mix(
+    in srgb,
+    var(--light-color-error) 12%,
+    var(--light-color-background)
+  );
+  --dark-color-error-wash: color-mix(
+    in srgb,
+    var(--dark-color-error) 14%,
+    var(--dark-color-background)
+  );
+
+  --color-mid-gray: #808080;
+
+  /* Active palette: light by default, the OS's choice via the media query below, or forced by
+     `data-theme`. */
+  --color-brand: var(--light-color-brand);
+  --color-on-brand: var(--light-color-on-brand);
+  --color-text: var(--light-color-text);
+  --color-background: var(--light-color-background);
+  --color-warning: var(--light-color-warning);
+  --color-error: var(--light-color-error);
+  --color-moss: var(--light-color-moss);
+  --color-moss-wash: var(--light-color-moss-wash);
+  --color-warning-wash: var(--light-color-warning-wash);
+  --color-error-wash: var(--light-color-error-wash);
+
+  /* Grey steps: secondary text, hints and icons, control edges, dividers, hover fill. */
+  --color-ink-2: color-mix(in srgb, var(--color-text) 60%, transparent);
+  --color-ink-3: var(--color-mid-gray);
+  --color-line-strong: color-mix(in srgb, var(--color-mid-gray) 80%, transparent);
+  --color-line: color-mix(in srgb, var(--color-mid-gray) 20%, transparent);
+  --color-wash: color-mix(in srgb, var(--color-mid-gray) 10%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-brand: var(--dark-color-brand);
+    --color-on-brand: var(--dark-color-on-brand);
+    --color-text: var(--dark-color-text);
+    --color-background: var(--dark-color-background);
+    --color-warning: var(--dark-color-warning);
+    --color-error: var(--dark-color-error);
+    --color-moss: var(--dark-color-moss);
+    --color-moss-wash: var(--dark-color-moss-wash);
+    --color-warning-wash: var(--dark-color-warning-wash);
+    --color-error-wash: var(--dark-color-error-wash);
+  }
+}
+
+:root[data-theme="light"] {
+  --color-brand: var(--light-color-brand);
+  --color-on-brand: var(--light-color-on-brand);
+  --color-text: var(--light-color-text);
+  --color-background: var(--light-color-background);
+  --color-warning: var(--light-color-warning);
+  --color-error: var(--light-color-error);
+  --color-moss: var(--light-color-moss);
+  --color-moss-wash: var(--light-color-moss-wash);
+  --color-warning-wash: var(--light-color-warning-wash);
+  --color-error-wash: var(--light-color-error-wash);
+}
+
+:root[data-theme="dark"] {
+  --color-brand: var(--dark-color-brand);
+  --color-on-brand: var(--dark-color-on-brand);
+  --color-text: var(--dark-color-text);
+  --color-background: var(--dark-color-background);
+  --color-warning: var(--dark-color-warning);
+  --color-error: var(--dark-color-error);
+  --color-moss: var(--dark-color-moss);
+  --color-moss-wash: var(--dark-color-moss-wash);
+  --color-warning-wash: var(--dark-color-warning-wash);
+  --color-error-wash: var(--dark-color-error-wash);
+}
