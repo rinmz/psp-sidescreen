@@ -4,6 +4,7 @@
 //! - `sidescreen-host detach` takes the virtual monitor off the desktop, if a run left it there.
 //! - `sidescreen-host probe` checks that the PSP can be reached.
 //! - `sidescreen-host send <file.jpg>` shows a 480x272 JPEG on it.
+//! - `sidescreen-host buttons` prints what the PSP reports as its buttons are pressed.
 //! - `sidescreen-host run [--virtual] [--size WxH] [--monitor N] [--quality NAME]` shows a
 //!   monitor live; the quality is lossless, high, medium or low. With `--virtual` the PSP gets a
 //!   monitor of its own, as an extra screen.
@@ -14,19 +15,21 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use sidescreen_host::capture;
+use sidescreen_host::capture::{self, Frame};
+use sidescreen_host::convert::{Converter, Picture, Quality};
 use sidescreen_host::dpi;
 use sidescreen_host::link::Link;
 use sidescreen_host::monitor;
 use sidescreen_host::session::{self, Event, Options};
 use sidescreen_host::usb::UsbPipe;
+use sidescreen_proto::{Button, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 /// How long one transfer may take before the PSP is considered stuck.
 const TRANSFER_TIMEOUT: Duration = Duration::from_millis(1000);
 /// Pause PSPdisp makes after the first bytes of the hello.
 const HELLO_SETTLE: Duration = Duration::from_millis(500);
 
-const USAGE: &str = "usage: sidescreen-host monitors | detach | probe | send <file.jpg> | \
+const USAGE: &str = "usage: sidescreen-host monitors | detach | probe | buttons | send <file.jpg> | \
 run [--virtual] [--size WxH] [--monitor N] [--quality lossless|high|medium|low]";
 
 fn main() -> ExitCode {
@@ -39,6 +42,7 @@ fn main() -> ExitCode {
         ["monitors"] => monitors(),
         ["detach"] => detach(),
         ["probe"] => probe(),
+        ["buttons"] => buttons(),
         ["send", path] => send(path),
         ["run", options @ ..] => run(options),
         _ => {
@@ -75,6 +79,71 @@ fn probe() -> Result<(), Box<dyn Error>> {
     let pipe = UsbPipe::open(TRANSFER_TIMEOUT)?;
     Link::open(pipe, HELLO_SETTLE)?;
     println!("PSP found and the link is open");
+    Ok(())
+}
+
+/// Bits of the PSP's control word that are not among the twelve buttons, with the names the PSP
+/// gives them. Which of them arrive depends on the PSP application and the firmware.
+const OTHER_BITS: [(u32, &str); 8] = [
+    (0x0001_0000, "home"),
+    (0x0002_0000, "hold"),
+    (0x0004_0000, "wlan"),
+    (0x0008_0000, "remote"),
+    (0x0010_0000, "volume up"),
+    (0x0020_0000, "volume down"),
+    (0x0040_0000, "screen"),
+    (0x0080_0000, "note"),
+];
+
+/// Names what is down in `word`, for a person reading the output.
+fn describe_buttons(word: u32) -> String {
+    let mut names: Vec<&str> = Button::ALL
+        .into_iter()
+        .filter(|button| button.is_down_in(word))
+        .map(Button::name)
+        .collect();
+    names.extend(
+        OTHER_BITS
+            .iter()
+            .filter(|(bit, _)| word & bit != 0)
+            .map(|(_, name)| *name),
+    );
+    if names.is_empty() {
+        "nothing".to_owned()
+    } else {
+        names.join(" + ")
+    }
+}
+
+fn buttons() -> Result<(), Box<dyn Error>> {
+    let stop = Arc::new(AtomicBool::new(false));
+    let handler_flag = Arc::clone(&stop);
+    ctrlc::set_handler(move || handler_flag.store(true, Ordering::SeqCst))?;
+
+    let pipe = UsbPipe::open(TRANSFER_TIMEOUT)?;
+    let mut link = Link::open(pipe, HELLO_SETTLE)?;
+
+    // The PSP answers each picture with its buttons, so a plain black one is sent over and over.
+    let black = Frame {
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
+        bgra: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize * 4],
+    };
+    let mut converter = Converter::new(Quality::Low);
+    println!("press buttons on the PSP; Ctrl+C to stop");
+
+    let mut last = None;
+    while !stop.load(Ordering::SeqCst) {
+        let Picture::Jpeg(jpeg) = converter.convert(&black)? else {
+            break;
+        };
+        let word = link.send_jpeg(jpeg)?.buttons;
+        if last != Some(word) {
+            println!("{word:#010x}  {}", describe_buttons(word));
+            last = Some(word);
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
     Ok(())
 }
 
