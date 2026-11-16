@@ -93,3 +93,9 @@ This project is independent of the Pane repository and does not modify it.
 ## Contributing
 
 Read the [engineering standards](docs/CONTRIBUTING.md) first.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The program that runs on the PSP, the virtual display driver and
+the design of the window come from other projects under their own licences; see
+[NOTICE.md](NOTICE.md).
