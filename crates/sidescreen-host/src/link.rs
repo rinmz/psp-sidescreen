@@ -144,6 +144,15 @@ impl<P: Pipe> Link<P> {
         self.send(FrameHeader::uncompressed, bgr)
     }
 
+    /// Asks the PSP what its buttons are doing, without sending a picture.
+    ///
+    /// # Errors
+    ///
+    /// [`LinkError`] if a transfer fails or the response is not valid.
+    pub fn poll(&mut self) -> Result<Response, LinkError> {
+        self.send(|_| FrameHeader::poll(), &[])
+    }
+
     fn send(
         &mut self,
         header: impl FnOnce(u32) -> FrameHeader,
@@ -309,6 +318,26 @@ mod tests {
         let writes = &link.pipe.writes;
         assert_eq!(writes[2], FrameHeader::uncompressed(391_680).encode());
         assert_eq!(writes[3].len(), RAW_FRAME_LEN);
+    }
+
+    #[test]
+    fn a_poll_sends_the_header_alone_and_reads_the_buttons() {
+        let pipe = Scripted {
+            write_answers: VecDeque::from([Ok(4), Ok(HELLO_LEN)]),
+            read_answers: VecDeque::from([Ok(valid_response(0x4000))]),
+            ..Scripted::default()
+        };
+        let mut link = open(pipe).unwrap();
+        let response = link.poll().unwrap();
+
+        assert_eq!(response.buttons, 0x4000);
+        let writes = &link.pipe.writes;
+        assert_eq!(
+            writes.len(),
+            3,
+            "the hello and the header, nothing after it"
+        );
+        assert_eq!(writes[2], FrameHeader::poll().encode());
     }
 
     #[test]

@@ -79,6 +79,19 @@ impl FrameHeader {
         }
     }
 
+    /// A header with no picture and no settings.
+    ///
+    /// The PSP answers it like any frame, so it is a way to ask what the buttons are doing
+    /// without sending a picture. PSPdisp sends the same when the screen has not changed.
+    #[must_use]
+    pub const fn poll() -> Self {
+        Self {
+            flags: FrameFlags::empty(),
+            image_size: 0,
+            settings_size: 0,
+        }
+    }
+
     /// Header for an uncompressed frame without settings; see
     /// [`FrameFlags::IMAGE_IS_UNCOMPRESSED`] for the pixel layout.
     #[must_use]
@@ -154,6 +167,13 @@ mod tests {
         let wire = FrameHeader::uncompressed(391_680).encode();
         assert_eq!(&wire[4..8], [0x41, 0x00, 0x00, 0x00]);
         assert_eq!(&wire[8..12], 391_680_u32.to_le_bytes());
+    }
+
+    #[test]
+    fn a_poll_has_no_flags_and_no_sizes() {
+        let wire = FrameHeader::poll().encode();
+        assert_eq!(&wire[..4], [0x00, 0x06, 0xFE, 0xAF]);
+        assert_eq!(&wire[4..], [0; 12]);
     }
 
     #[test]

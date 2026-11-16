@@ -15,14 +15,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use sidescreen_host::capture::{self, Frame};
-use sidescreen_host::convert::{Converter, Picture, Quality};
+use sidescreen_host::capture;
 use sidescreen_host::dpi;
 use sidescreen_host::link::Link;
 use sidescreen_host::monitor;
 use sidescreen_host::session::{self, Event, Options};
 use sidescreen_host::usb::UsbPipe;
-use sidescreen_proto::{Button, SCREEN_HEIGHT, SCREEN_WIDTH};
+use sidescreen_proto::Button;
 
 /// How long one transfer may take before the PSP is considered stuck.
 const TRANSFER_TIMEOUT: Duration = Duration::from_millis(1000);
@@ -123,26 +122,18 @@ fn buttons() -> Result<(), Box<dyn Error>> {
     let pipe = UsbPipe::open(TRANSFER_TIMEOUT)?;
     let mut link = Link::open(pipe, HELLO_SETTLE)?;
 
-    // The PSP answers each picture with its buttons, so a plain black one is sent over and over.
-    let black = Frame {
-        width: SCREEN_WIDTH,
-        height: SCREEN_HEIGHT,
-        bgra: vec![0; SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize * 4],
-    };
-    let mut converter = Converter::new(Quality::Low);
+    // The PSP answers each frame with its buttons; a poll is a frame with no picture, which is
+    // what a session sends while its buttons are in use.
     println!("press buttons on the PSP; Ctrl+C to stop");
 
     let mut last = None;
     while !stop.load(Ordering::SeqCst) {
-        let Picture::Jpeg(jpeg) = converter.convert(&black)? else {
-            break;
-        };
-        let word = link.send_jpeg(jpeg)?.buttons;
+        let word = link.poll()?.buttons;
         if last != Some(word) {
             println!("{word:#010x}  {}", describe_buttons(word));
             last = Some(word);
         }
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(10));
     }
     Ok(())
 }

@@ -28,6 +28,10 @@ const CAPTURE_WAIT: Duration = Duration::from_millis(33);
 /// A picture is sent again after this long without change, so the PSP knows the host is alive
 /// and does not go into power saving.
 const KEEP_ALIVE: Duration = Duration::from_millis(500);
+/// While the PSP's buttons are in use, the PSP is asked about them this often even when there is
+/// no picture to send. The PSP reports its buttons only in answer to a frame, so without this a
+/// short press falls between two answers and is missed.
+const POLL_EVERY: Duration = Duration::from_millis(30);
 /// How often the captured monitor is looked at again, to notice a change of resolution.
 const RECHECK_EVERY: Duration = Duration::from_millis(500);
 /// How often to look for a monitor that went away.
@@ -196,6 +200,8 @@ pub fn run(
         converter: Converter::new(options.quality),
         mapper: Mapper::new(options.controls.clone()),
         last_input: Instant::now(),
+        polling: options.controls.enabled,
+        last_poll: Instant::now(),
         virtual_monitor: options.virtual_monitor,
         last_check: Instant::now(),
         last_retry: Instant::now(),
@@ -267,6 +273,9 @@ struct Source {
     /// What is held on the PSP, so it can be released when the PSP goes away.
     mapper: Mapper,
     last_input: Instant,
+    /// Whether the buttons are in use, so the PSP is asked about them often.
+    polling: bool,
+    last_poll: Instant,
     virtual_monitor: bool,
     last_check: Instant,
     last_retry: Instant,
@@ -300,6 +309,7 @@ fn stream(
                 handle_input(source, &response);
                 last_sent = Instant::now();
             }
+            poll_if_due(link, source)?;
             if source.last_retry.elapsed() >= RETRY_EVERY {
                 source.last_retry = Instant::now();
                 reopen(source, report);
@@ -323,6 +333,7 @@ fn stream(
             }
         }
         if source.frame.bgra.is_empty() || !(changed || last_sent.elapsed() >= KEEP_ALIVE) {
+            poll_if_due(link, source)?;
             continue;
         }
         let response = send_frame(link, &mut source.converter, &source.frame)?;
@@ -378,10 +389,21 @@ fn send_frame(
     })
 }
 
+/// Asks the PSP about its buttons if the buttons are in use and it has been a while.
+fn poll_if_due(link: &mut Link<UsbPipe>, source: &mut Source) -> Result<(), Error> {
+    if source.polling && source.last_poll.elapsed() >= POLL_EVERY {
+        let response = link.poll()?;
+        handle_input(source, &response);
+    }
+    Ok(())
+}
+
 /// Does on the PC what the PSP's buttons and stick ask for.
 fn handle_input(source: &mut Source, response: &Response) {
     let elapsed = source.last_input.elapsed();
     source.last_input = Instant::now();
+    // Any answer from the PSP tells the buttons, so the next question can wait.
+    source.last_poll = Instant::now();
     perform(source.mapper.update(response, elapsed));
 }
 
