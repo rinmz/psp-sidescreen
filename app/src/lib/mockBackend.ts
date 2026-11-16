@@ -2,6 +2,7 @@ import {
   DEFAULT_SETTINGS,
   type Backend,
   type ControlCatalog,
+  type DriverOutcome,
   type PspInstall,
   type SetupStatus,
   type Monitor,
@@ -51,6 +52,7 @@ const catalog: ControlCatalog = {
 /** The mock plays a PSP that is connected after a few looks, then takes the program. */
 let setupLooks = 0;
 let programOnStick = false;
+let driverTries = 0;
 
 function mockSetup(): SetupStatus {
   setupLooks += 1;
@@ -99,6 +101,11 @@ export const mockBackend: Backend = {
   listMonitors: () => Promise.resolve(monitors),
   listControls: () => Promise.resolve(catalog),
   getSetup: () => Promise.resolve(mockSetup()),
+  // The first try is refused, as on a PC that has not been restarted with signature checks off.
+  installPspDriver: (): Promise<DriverOutcome> => {
+    driverTries += 1;
+    return Promise.resolve(driverTries === 1 ? "unsigned" : "installed");
+  },
   installPspProgram: () => {
     programOnStick = true;
     const done: PspInstall = { drive: "E:\\", files: 19, keptSettings: false };

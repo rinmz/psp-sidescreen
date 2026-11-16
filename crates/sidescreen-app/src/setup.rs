@@ -7,7 +7,9 @@
 // Tauri hands a command its `AppHandle` by value; it cannot be borrowed.
 #![allow(clippy::needless_pass_by_value)]
 
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
+use std::process::Command;
 
 use serde::Serialize;
 use sidescreen_setup::{Error, psp_driver, stick, vdd};
@@ -76,6 +78,76 @@ pub(crate) fn install_psp_program(app: AppHandle) -> Result<PspInstall, String> 
     })
 }
 
+/// `CREATE_NO_WINDOW`: no console window flashes up for the helper.
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Exit codes of `sidescreen-setup`, and the one the wrapper uses when the person says no to the
+/// administrator prompt.
+const EXIT_UNSIGNED: i32 = 4;
+const EXIT_ALREADY: i32 = 6;
+const EXIT_DECLINED: i32 = 100;
+
+/// What the window is told about installing the PSP driver: `installed`, `already`, `unsigned`,
+/// `declined` or `failed`.
+fn driver_outcome(exit_code: i32) -> &'static str {
+    match exit_code {
+        0 => "installed",
+        EXIT_ALREADY => "already",
+        EXIT_UNSIGNED => "unsigned",
+        EXIT_DECLINED => "declined",
+        _ => "failed",
+    }
+}
+
+/// Installs the USB driver for the PSP. Installing needs administrator rights, so the helper is
+/// started with the prompt for them; this program stays as it is.
+///
+/// The paths go to PowerShell in environment variables, not in the command text, so that no path
+/// can be taken for part of a command.
+#[tauri::command]
+pub(crate) fn install_psp_driver(app: AppHandle) -> Result<&'static str, String> {
+    let resources = resource_root(&app)?;
+    let helper = resources.join("sidescreen-setup.exe");
+    let inf = resources
+        .join("drivers")
+        .join("psp")
+        .join("sidescreen-psp.inf");
+    if !helper.is_file() || !inf.is_file() {
+        return Err(
+            "the driver is missing from this installation; install PSP Sidescreen again".to_owned(),
+        );
+    }
+    let script = "try { $p = Start-Process -FilePath $env:SIDESCREEN_HELPER         -ArgumentList 'install-psp-driver', ('\"' + $env:SIDESCREEN_INF + '\"')         -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } catch { exit 100 }";
+    let status = Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .env("SIDESCREEN_HELPER", &helper)
+        .env("SIDESCREEN_INF", &inf)
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .map_err(|error| error.to_string())?;
+    Ok(driver_outcome(status.code().unwrap_or(-1)))
+}
+
+/// The folder the installer put its extra files in; while developing, the build folder and the
+/// repository stand in for it.
+fn resource_root(app: &AppHandle) -> Result<PathBuf, String> {
+    let installed = app
+        .path()
+        .resource_dir()
+        .map_err(|error| error.to_string())?;
+    if installed.join("sidescreen-setup.exe").is_file() {
+        return Ok(installed);
+    }
+    if cfg!(debug_assertions) {
+        let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let staged = repository.join("crates/sidescreen-app/resources");
+        if staged.join("sidescreen-setup.exe").is_file() {
+            return Ok(staged);
+        }
+    }
+    Err("the installer's files were not found".to_owned())
+}
+
 /// The folder that holds the PSP program the installer carried (`PSP/GAME/Sidescreen` below it).
 fn package_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let installed = app
@@ -128,6 +200,17 @@ mod tests {
             serde_json::to_string(&done).unwrap(),
             r#"{"drive":"E:\\","files":3,"keptSettings":true}"#
         );
+    }
+
+    #[test]
+    fn every_exit_code_of_the_helper_has_an_outcome_for_the_window() {
+        assert_eq!(driver_outcome(0), "installed");
+        assert_eq!(driver_outcome(6), "already");
+        assert_eq!(driver_outcome(4), "unsigned");
+        assert_eq!(driver_outcome(100), "declined");
+        for other in [1, 2, 3, 5, -1, 1223] {
+            assert_eq!(driver_outcome(other), "failed", "{other}");
+        }
     }
 
     #[test]

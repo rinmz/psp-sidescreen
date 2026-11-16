@@ -31,6 +31,7 @@ fn main() {
             commands::stop_session,
             setup::get_setup,
             setup::install_psp_program,
+            setup::install_psp_driver,
         ])
         .setup(|app| {
             tray::create(app.handle())?;

@@ -36,6 +36,9 @@ export interface SetupStatus {
   programOnStick: boolean;
 }
 
+/** What installing the PSP's USB driver came to. */
+export type DriverOutcome = "installed" | "already" | "unsigned" | "declined" | "failed";
+
 /** What putting the program on the PSP did. */
 export interface PspInstall {
   drive: string;
@@ -81,6 +84,8 @@ export interface Backend {
   getSetup(): Promise<SetupStatus>;
   /** Puts the PSP program on the Memory Stick; rejects with a message for the person. */
   installPspProgram(): Promise<PspInstall>;
+  /** Installs the PSP's USB driver; asks Windows for administrator rights. */
+  installPspDriver(): Promise<DriverOutcome>;
   start(): Promise<void>;
   stop(): Promise<void>;
   /** Calls `listener` with every change of state; returns a function that stops listening. */

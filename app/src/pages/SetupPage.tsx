@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "../components/ui/Button";
 import { SettingsGroup } from "../components/ui/SettingsGroup";
 import type { Sidescreen } from "../hooks/useSidescreen";
-import type { PspInstall, SetupStatus } from "../lib/backend";
+import type { DriverOutcome, PspInstall, SetupStatus } from "../lib/backend";
 
 /** How often the page looks again, so a PSP that is connected is noticed. */
 const LOOK_EVERY_MS = 2000;
@@ -23,48 +23,105 @@ const TONES: Record<Tone, { icon: LucideIcon; box: string; spin?: boolean }> = {
   bad: { icon: AlertTriangle, box: "bg-warning-wash text-warning" },
 };
 
-function Row({ tone, title, hint }: { tone: Tone; title: string; hint: string }) {
+function Row({
+  tone,
+  title,
+  hint,
+  action,
+}: {
+  tone: Tone;
+  title: string;
+  hint: string;
+  action?: ReactNode;
+}) {
   const { icon: Icon, box, spin } = TONES[tone];
   return (
     <div className="flex items-center gap-3 p-2 px-4">
       <div className={`grid size-9 shrink-0 place-items-center rounded-lg ${box}`}>
         <Icon size={18} className={spin ? "animate-spin" : ""} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-sm text-ink-2">{hint}</p>
       </div>
+      {action}
     </div>
   );
 }
 
-function pspDriverRow(status: SetupStatus) {
-  switch (status.pspDriver) {
-    case "ready":
-      return (
-        <Row
-          tone="good"
-          title="USB driver for the PSP"
-          hint="Windows can talk to the PSP."
-        />
-      );
-    case "needs-driver":
-      return (
-        <Row
-          tone="bad"
-          title="USB driver for the PSP"
-          hint="Windows has no driver for the PSP yet. See the project page for what to do."
-        />
-      );
-    case "not-connected":
-      return (
-        <Row
-          tone="wait"
-          title="USB driver for the PSP"
-          hint="Checked once the program is running on the PSP."
-        />
-      );
+/** What each outcome of installing the driver says to the person. */
+const DRIVER_OUTCOMES: Record<
+  DriverOutcome,
+  { tone: Tone; title: string; hint: string }
+> = {
+  installed: {
+    tone: "good",
+    title: "The driver is installed",
+    hint: "On the PSP open PSP Sidescreen, then press Start on the Display page.",
+  },
+  already: {
+    tone: "good",
+    title: "The driver was already working",
+    hint: "Nothing needed to be installed.",
+  },
+  unsigned: {
+    tone: "bad",
+    title: "Windows refused the driver",
+    hint: "It checks signatures, and this driver is not signed. Restart once with driver signature checking off, then press Install the driver again: Settings, System, Recovery, Advanced startup, Restart now, Troubleshoot, Advanced options, Startup Settings, Restart, then press 7.",
+  },
+  declined: {
+    tone: "bad",
+    title: "Windows asked for permission",
+    hint: "It was not given. Press Install the driver again and choose Yes.",
+  },
+  failed: {
+    tone: "bad",
+    title: "That did not work",
+    hint: "The driver could not be installed. docs/PSP-DRIVER.md in the project shows how to do it by hand.",
+  },
+};
+
+function PspDriverRows({
+  status,
+  busy,
+  outcome,
+  onInstall,
+}: {
+  status: SetupStatus;
+  busy: boolean;
+  outcome: DriverOutcome | null;
+  onInstall: () => void;
+}) {
+  if (status.pspDriver === "ready") {
+    return (
+      <Row
+        tone="good"
+        title="USB driver for the PSP"
+        hint="Windows can talk to the PSP."
+      />
+    );
   }
+  const install = (
+    <Button variant="secondary" disabled={busy} onClick={onInstall}>
+      {busy ? "Installing…" : "Install the driver"}
+    </Button>
+  );
+  const shown = outcome ? DRIVER_OUTCOMES[outcome] : null;
+  return (
+    <>
+      <Row
+        tone={status.pspDriver === "needs-driver" ? "bad" : "wait"}
+        title="USB driver for the PSP"
+        hint={
+          status.pspDriver === "needs-driver"
+            ? "The PSP is connected and Windows has no driver for it."
+            : "Checked once the program is running on the PSP. You can also install it now."
+        }
+        action={install}
+      />
+      {shown && <Row tone={shown.tone} title={shown.title} hint={shown.hint} />}
+    </>
+  );
 }
 
 /** The card for the PSP step: it says what to do next, and does it when asked. */
@@ -141,11 +198,13 @@ export function SetupPage({
   sidescreen: Sidescreen;
   onFinish: () => void;
 }) {
-  const { getSetup, installPspProgram } = sidescreen;
+  const { getSetup, installPspProgram, installPspDriver } = sidescreen;
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [installing, setInstalling] = useState(false);
   const [result, setResult] = useState<PspInstall | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [driverBusy, setDriverBusy] = useState(false);
+  const [driverOutcome, setDriverOutcome] = useState<DriverOutcome | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,13 +230,21 @@ export function SetupPage({
       .finally(() => setInstalling(false));
   }, [installPspProgram]);
 
+  const installDriver = useCallback(() => {
+    setDriverBusy(true);
+    setDriverOutcome(null);
+    installPspDriver()
+      .then(setDriverOutcome, () => setDriverOutcome("failed"))
+      .finally(() => setDriverBusy(false));
+  }, [installPspDriver]);
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <section className="rounded-lg border border-line bg-background p-4">
         <h2 className="text-base font-semibold">Set up PSP Sidescreen</h2>
         <p className="mt-1 text-sm text-ink-2">
           Two things on this PC, and the program on your PSP. The installer did the first
-          two.
+          one.
         </p>
       </section>
 
@@ -193,7 +260,12 @@ export function SetupPage({
                   : "Missing. Install PSP Sidescreen again to add it. Without it the PSP can only show a monitor you already have."
               }
             />
-            {pspDriverRow(status)}
+            <PspDriverRows
+              status={status}
+              busy={driverBusy}
+              outcome={driverOutcome}
+              onInstall={installDriver}
+            />
           </>
         ) : (
           <Row tone="wait" title="Looking" hint="Checking this PC." />

@@ -5,6 +5,7 @@ import {
   createBackend,
   type Backend,
   type ControlCatalog,
+  type DriverOutcome,
   type Monitor,
   type PspInstall,
   type SessionState,
@@ -26,6 +27,7 @@ export interface Sidescreen {
   /** Looks at what is installed and whether a PSP is connected. */
   getSetup: () => Promise<SetupStatus>;
   installPspProgram: () => Promise<PspInstall>;
+  installPspDriver: () => Promise<DriverOutcome>;
 }
 
 /** The backend, which exists once the window has loaded; the pages are shown only then. */
@@ -88,6 +90,10 @@ export function useSidescreen(): Sidescreen {
   const start = useCallback(() => void backend.current?.start(), []);
   const stop = useCallback(() => void backend.current?.stop(), []);
   const getSetup = useCallback(() => requireBackend(backend).getSetup(), []);
+  const installPspDriver = useCallback(
+    () => requireBackend(backend).installPspDriver(),
+    [],
+  );
   const installPspProgram = useCallback(
     () => requireBackend(backend).installPspProgram(),
     [],
@@ -105,5 +111,6 @@ export function useSidescreen(): Sidescreen {
     stop,
     getSetup,
     installPspProgram,
+    installPspDriver,
   };
 }

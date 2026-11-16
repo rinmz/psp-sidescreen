@@ -12,6 +12,7 @@ export const tauriBackend: Backend = {
   listControls: () => invoke("list_controls"),
   getSetup: () => invoke("get_setup"),
   installPspProgram: () => invoke("install_psp_program"),
+  installPspDriver: () => invoke("install_psp_driver"),
   start: () => invoke("start_session"),
   stop: () => invoke("stop_session"),
   onState: (listener) =>
