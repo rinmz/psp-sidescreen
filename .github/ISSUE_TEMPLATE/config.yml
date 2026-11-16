@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea to talk over
+    url: https://github.com/rinmz/psp-sidescreen/discussions
+    about: Ask how something works, or share how you use it.
+  - name: Security problem
+    url: https://github.com/rinmz/psp-sidescreen/security/advisories/new
+    about: Report it privately, not as an issue.
