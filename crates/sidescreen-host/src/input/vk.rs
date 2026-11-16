@@ -1,0 +1,30 @@
+//! Windows virtual-key codes used by the actions and by custom shortcuts.
+
+pub(super) const BACK: u16 = 0x08;
+pub(super) const TAB: u16 = 0x09;
+pub(super) const RETURN: u16 = 0x0D;
+pub(super) const CONTROL: u16 = 0x11;
+pub(super) const MENU: u16 = 0x12;
+pub(super) const ESCAPE: u16 = 0x1B;
+pub(super) const SPACE: u16 = 0x20;
+pub(super) const PRIOR: u16 = 0x21;
+pub(super) const NEXT: u16 = 0x22;
+pub(super) const END: u16 = 0x23;
+pub(super) const HOME: u16 = 0x24;
+pub(super) const LEFT: u16 = 0x25;
+pub(super) const UP: u16 = 0x26;
+pub(super) const RIGHT: u16 = 0x27;
+pub(super) const DOWN: u16 = 0x28;
+pub(super) const DELETE: u16 = 0x2E;
+pub(super) const C: u16 = 0x43;
+pub(super) const D: u16 = 0x44;
+pub(super) const V: u16 = 0x56;
+pub(super) const Z: u16 = 0x5A;
+pub(super) const LWIN: u16 = 0x5B;
+pub(super) const F5: u16 = 0x74;
+pub(super) const VOLUME_MUTE: u16 = 0xAD;
+pub(super) const VOLUME_DOWN: u16 = 0xAE;
+pub(super) const VOLUME_UP: u16 = 0xAF;
+pub(super) const MEDIA_NEXT: u16 = 0xB0;
+pub(super) const MEDIA_PREVIOUS: u16 = 0xB1;
+pub(super) const MEDIA_PLAY_PAUSE: u16 = 0xB3;

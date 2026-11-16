@@ -7,7 +7,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sidescreen_host::convert::Quality;
-use sidescreen_host::input::{Action, Controls};
+use sidescreen_host::input::{Binding, Controls};
 use sidescreen_host::session::Options;
 use sidescreen_proto::Button;
 
@@ -50,8 +50,9 @@ pub(crate) struct ControlSettings {
     pub(crate) enabled: bool,
     /// Whether the analog stick moves the mouse pointer.
     pub(crate) analog_mouse: bool,
-    /// The action of each button, by the button's name and the action's id. A button that is
-    /// missing, or whose action is not known, does nothing.
+    /// What each button does, by the button's name: an action's id, or `custom:` and a typed
+    /// shortcut such as `custom:ControlLeft+Space`. A button that is missing, or whose setting is
+    /// not understood, does nothing.
     pub(crate) buttons: BTreeMap<String, String>,
 }
 
@@ -60,12 +61,11 @@ impl ControlSettings {
     fn to_controls(&self) -> Controls {
         let mut controls = Controls::new(self.enabled, self.analog_mouse);
         for button in Button::ALL {
-            let action = self
+            let binding = self
                 .buttons
                 .get(button.name())
-                .and_then(|id| Action::from_id(id))
-                .unwrap_or(Action::Nothing);
-            controls.set(button, action);
+                .map_or(Binding::Nothing, |setting| Binding::from_setting(setting));
+            controls.set(button, binding);
         }
         controls
     }
@@ -145,6 +145,7 @@ pub(crate) fn save(path: &Path, settings: &Settings) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sidescreen_host::input::Action;
 
     fn temp_file(name: &str) -> std::path::PathBuf {
         let folder =
@@ -241,7 +242,7 @@ mod tests {
         let controls = Settings::default().to_options().unwrap().controls;
         assert!(!controls.enabled);
         for button in Button::ALL {
-            assert_eq!(controls.action(button), Action::Nothing);
+            assert_eq!(*controls.binding(button), Binding::Nothing);
         }
     }
 
@@ -260,8 +261,11 @@ mod tests {
         };
         let controls = settings.to_options().unwrap().controls;
         assert!(controls.enabled);
-        assert_eq!(controls.action(Button::Cross), Action::Enter);
-        assert_eq!(controls.action(Button::Circle), Action::Nothing);
-        assert_eq!(controls.action(Button::Square), Action::Nothing);
+        assert_eq!(
+            *controls.binding(Button::Cross),
+            Binding::from(Action::Enter)
+        );
+        assert_eq!(*controls.binding(Button::Circle), Binding::Nothing);
+        assert_eq!(*controls.binding(Button::Square), Binding::Nothing);
     }
 }

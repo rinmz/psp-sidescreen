@@ -38,7 +38,7 @@ impl std::error::Error for Blocked {}
 
 /// Keys that Windows tells apart from the number pad by the extended-key flag.
 const fn is_extended(vk: u16) -> bool {
-    matches!(vk, 0x21..=0x28 | 0x2D | 0x2E | 0x5B)
+    matches!(vk, 0x21..=0x28 | 0x2D | 0x2E | 0x5B | 0x5C)
 }
 
 fn key_input(vk: u16, up: bool) -> INPUT {

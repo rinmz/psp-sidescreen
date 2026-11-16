@@ -38,7 +38,7 @@ const CONNECT_RETRY: Duration = Duration::from_secs(1);
 const VIRTUAL_REFRESH_HZ: u32 = 60;
 
 /// What to show and how.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Options {
     /// Give the PSP a virtual monitor of its own instead of showing an existing one.
     pub virtual_monitor: bool,
@@ -194,7 +194,7 @@ pub fn run(
         capturer: Some(first),
         frame: Frame::default(),
         converter: Converter::new(options.quality),
-        mapper: Mapper::new(options.controls),
+        mapper: Mapper::new(options.controls.clone()),
         last_input: Instant::now(),
         virtual_monitor: options.virtual_monitor,
         last_check: Instant::now(),
