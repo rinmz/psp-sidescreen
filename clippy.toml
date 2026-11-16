@@ -1,0 +1,2 @@
+# Product names that appear in prose; ".." keeps clippy's built-in list.
+doc-valid-idents = ["PSPdisp", "PSPLINK", "PSPSDK", "WinUSB", ".."]

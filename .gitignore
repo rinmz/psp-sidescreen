@@ -1,0 +1,10 @@
+/target
+/dist
+*.log
+
+# PSP build output
+/psp/build/
+*.elf
+*.prx
+*.PBP
+*.SFO
