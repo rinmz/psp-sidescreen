@@ -72,6 +72,22 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## Libraries inside the PSP program
+
+The `EBOOT.PBP` from PSPdisp has these libraries built into it. They are used unchanged, as PSPdisp
+ships them. Their sources are in the PSPdisp source package at https://jjs.at/software/pspdisp.html.
+
+| Library | By | Licence |
+|---|---|---|
+| intraFont (text drawing) | BenHur, http://www.psp-programming.com/benhur | Creative Commons Attribution-Share Alike 3.0, https://creativecommons.org/licenses/by-sa/3.0/ |
+| libccc (character code conversion) | BenHur | Creative Commons Attribution-Share Alike 3.0, https://creativecommons.org/licenses/by-sa/3.0/ |
+| danzeff (on-screen keyboard) and its pictures in `graphics/` | Danzel | BSD, as part of PSPSDK |
+| libjpeg, libpng and zlib (from PSPSDK) | the respective authors | their own permissive licences |
+
+This software is based in part on the work of the Independent JPEG Group.
+
+The Creative Commons licences apply to those two libraries only. The rest of this project is MIT.
+
 ## Virtual Display Driver
 
 The extra screen Windows shows for the PSP is provided by the open-source Virtual Display Driver
