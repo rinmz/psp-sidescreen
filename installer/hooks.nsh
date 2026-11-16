@@ -39,7 +39,7 @@
   ${ElseIf} $0 == 4
     DetailPrint "Windows would not accept the PSP driver: it is not signed yet"
     ${IfNot} ${Silent}
-      MessageBox MB_ICONEXCLAMATION|MB_OK "Windows did not accept the USB driver for the PSP, because the driver is not signed yet.$\r$\n$\r$\nPSP Sidescreen is installed, but it cannot talk to the PSP until Windows has a driver for it. See the project page for what to do."
+      MessageBox MB_ICONEXCLAMATION|MB_OK "Windows did not accept the USB driver for the PSP, because the driver is not signed yet.$\r$\n$\r$\nPSP Sidescreen is installed. Windows has to be allowed to use the driver once, by hand. The steps are in docs\PSP-DRIVER.md in the project, and take about two minutes."
     ${EndIf}
   ${Else}
     DetailPrint "The USB driver for the PSP could not be installed (code $0)"

@@ -13,7 +13,9 @@ Run the installer (`PSP Sidescreen_<version>_x64-setup.exe`). It is a normal Win
 installs the program and the drivers it needs, and nothing else has to be downloaded. The first
 time the program opens it asks you to connect the PSP and puts the program on it.
 
-See [docs/SIGNING.md](docs/SIGNING.md) for the one driver that is not signed yet, and
+**One step is done by hand, once per PC:** the USB driver for the PSP is not signed, so Windows
+asks you to allow it. [docs/PSP-DRIVER.md](docs/PSP-DRIVER.md) shows how, in two minutes.
+See [docs/SIGNING.md](docs/SIGNING.md) for why, and
 [docs/BUILDING.md](docs/BUILDING.md) to build the installer yourself.
 
 ## Use
