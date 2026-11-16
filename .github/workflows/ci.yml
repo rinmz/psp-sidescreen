@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # The program embeds the built window, so the window is built before the Rust is checked.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -41,7 +41,7 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
