@@ -35,7 +35,7 @@ These rules apply to every change, regardless of who writes it.
   `prefers-reduced-motion`.
 - The look follows [Handy](https://github.com/cjpais/Handy) (MIT): a sidebar, titled groups of
   settings rows, a status bar. The yellow is the logo's.
-- Gates, run in `app/`: `npm run typecheck`, `npm run lint`, `npm run format:check`,
+- Gates, run in `app/`: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm test`,
   `npm run build`.
 
 ## Tests
