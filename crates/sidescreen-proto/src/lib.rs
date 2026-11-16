@@ -4,11 +4,13 @@
 //! unmodified PSPdisp application on the console. This crate holds the encoding only: no I/O,
 //! no dependencies. The normative description is `docs/PROTOCOL.md`.
 
+mod buttons;
 mod error;
 mod frame;
 mod handshake;
 mod response;
 
+pub use buttons::Button;
 pub use error::Error;
 pub use frame::{FRAME_HEADER_LEN, FrameFlags, FrameHeader};
 pub use handshake::{HELLO_LEN, HOSTFS_MAGIC};
