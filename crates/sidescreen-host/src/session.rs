@@ -12,9 +12,12 @@ use std::time::{Duration, Instant};
 
 use crate::capture::{self, CaptureError, Capturer, Check, Frame};
 use crate::convert::{ConvertError, Converter, Picture, Quality};
+use crate::inject;
+use crate::input::{Controls, Event as InputEvent, Mapper};
 use crate::link::{Link, LinkError, PipeError};
 use crate::monitor::{self, MonitorError, VirtualMonitor};
 use crate::usb::{OpenError, UsbPipe};
+use sidescreen_proto::Response;
 
 /// How long one transfer may take before the PSP is considered stuck.
 const TRANSFER_TIMEOUT: Duration = Duration::from_millis(1000);
@@ -46,6 +49,8 @@ pub struct Options {
     pub monitor: usize,
     /// How the picture is compressed.
     pub quality: Quality,
+    /// What the PSP's buttons and stick do on the PC.
+    pub controls: Controls,
 }
 
 impl Default for Options {
@@ -55,6 +60,7 @@ impl Default for Options {
             size: (1366, 768),
             monitor: 0,
             quality: Quality::Medium,
+            controls: Controls::default(),
         }
     }
 }
@@ -188,6 +194,8 @@ pub fn run(
         capturer: Some(first),
         frame: Frame::default(),
         converter: Converter::new(options.quality),
+        mapper: Mapper::new(options.controls),
+        last_input: Instant::now(),
         virtual_monitor: options.virtual_monitor,
         last_check: Instant::now(),
         last_retry: Instant::now(),
@@ -197,7 +205,10 @@ pub fn run(
         let Some(mut link) = connect(stop, &mut report)? else {
             break;
         };
-        match stream(&mut link, &mut source, stop, &mut report) {
+        let ended = stream(&mut link, &mut source, stop, &mut report);
+        // Whatever the way it ended, nothing the PSP was holding stays held on the PC.
+        perform(source.mapper.release_all());
+        match ended {
             Ok(()) => {}
             // The PSP stopped answering: the cable was pulled or its application was closed.
             // Wait for it and carry on with the same screen.
@@ -253,6 +264,9 @@ struct Source {
     capturer: Option<Capturer>,
     frame: Frame,
     converter: Converter,
+    /// What is held on the PSP, so it can be released when the PSP goes away.
+    mapper: Mapper,
+    last_input: Instant,
     virtual_monitor: bool,
     last_check: Instant,
     last_retry: Instant,
@@ -282,7 +296,8 @@ fn stream(
             // Windows needs before it will describe the monitor as it is now.
             thread::sleep(CAPTURE_WAIT);
             if !source.frame.bgra.is_empty() && last_sent.elapsed() >= KEEP_ALIVE {
-                send_frame(link, &mut source.converter, &source.frame)?;
+                let response = send_frame(link, &mut source.converter, &source.frame)?;
+                handle_input(source, &response);
                 last_sent = Instant::now();
             }
             if source.last_retry.elapsed() >= RETRY_EVERY {
@@ -310,7 +325,8 @@ fn stream(
         if source.frame.bgra.is_empty() || !(changed || last_sent.elapsed() >= KEEP_ALIVE) {
             continue;
         }
-        send_frame(link, &mut source.converter, &source.frame)?;
+        let response = send_frame(link, &mut source.converter, &source.frame)?;
+        handle_input(source, &response);
         last_sent = Instant::now();
         sent += 1;
 
@@ -350,17 +366,31 @@ fn duration_ms(duration: Duration) -> u32 {
     u32::try_from(duration.as_millis()).unwrap_or(u32::MAX)
 }
 
-/// Converts `frame` and sends it to the PSP.
+/// Converts `frame`, sends it to the PSP and returns what the PSP reports back.
 fn send_frame(
     link: &mut Link<UsbPipe>,
     converter: &mut Converter,
     frame: &Frame,
-) -> Result<(), Error> {
-    match converter.convert(frame)? {
+) -> Result<Response, Error> {
+    Ok(match converter.convert(frame)? {
         Picture::Jpeg(jpeg) => link.send_jpeg(jpeg)?,
         Picture::Raw(bgr) => link.send_raw(bgr)?,
-    };
-    Ok(())
+    })
+}
+
+/// Does on the PC what the PSP's buttons and stick ask for.
+fn handle_input(source: &mut Source, response: &Response) {
+    let elapsed = source.last_input.elapsed();
+    source.last_input = Instant::now();
+    perform(source.mapper.update(response, elapsed));
+}
+
+/// Carries out the events. Windows may refuse one (a window with more rights than this program
+/// is in front); that is not a reason to end the session, so it is let go.
+fn perform(events: Vec<InputEvent>) {
+    for event in events {
+        let _ = inject::apply(&event);
+    }
 }
 
 #[cfg(test)]

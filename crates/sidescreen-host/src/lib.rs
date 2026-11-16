@@ -8,6 +8,8 @@
 pub mod capture;
 pub mod convert;
 pub mod dpi;
+pub mod inject;
+pub mod input;
 pub mod link;
 pub mod monitor;
 pub mod session;
