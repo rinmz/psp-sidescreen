@@ -2797,6 +2797,13 @@ name = "sidescreen-proto"
 version = "0.1.0"
 
 [[package]]
+name = "sidescreen-setup"
+version = "0.1.0"
+dependencies = [
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "simd-adler32"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
