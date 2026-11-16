@@ -3,7 +3,7 @@
 //! The standard tools cannot do this in one step: `pnputil` can add a driver package but, on
 //! current Windows builds, cannot create the root-enumerated device that an indirect-display
 //! driver attaches to. This does what Microsoft's `devcon install` does: create the device node,
-//! register it, and update its driver from the INF. The approach is the one `pane-vdd` proved.
+//! register it, and update its driver from the INF.
 //!
 //! This module calls the Windows API and needs `unsafe`. Each block says what makes it safe.
 #![allow(unsafe_code)]

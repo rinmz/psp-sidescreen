@@ -77,5 +77,5 @@ stored.
   Any error from the capture (a resolution change, Win+P, `DXGI_ERROR_INVALID_CALL`) is handled
   the same way: the capture is dropped, the last picture keeps being sent so the PSP does not
   go into power saving, and the monitor is looked for every half second until it is back.
-- **Independent of Pane.** The host can capture any monitor, including one that another
+- **Any monitor can be shown.** The host can capture any monitor, including one that another
   program owns, without changing that program or its driver.

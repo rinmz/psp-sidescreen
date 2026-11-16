@@ -42,3 +42,15 @@ person agrees, because other programs may use it.
 
 `psp/package` is committed. To make it again from the PSPdisp files in `psp/vendor`, run
 `scripts/package-psp.sh` where the PSPSDK tools are available (see `psp/README.md`).
+
+## Publish a release
+
+Raise the version in `Cargo.toml` and `crates/sidescreen-app/tauri.conf.json`, commit, then tag it:
+
+```
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The `Release` workflow builds the installer on a clean Windows machine and publishes it, with its
+SHA-256, as a GitHub release. It refuses a tag that does not match the version in `Cargo.toml`.

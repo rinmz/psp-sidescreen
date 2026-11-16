@@ -1,112 +1,122 @@
-# PSP Sidescreen
+<div align="center">
 
-Use a PlayStation Portable as a low-latency side display for a Windows PC.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/logo-light.png">
+  <img alt="PSP Sidescreen" src="docs/images/logo-light.png" width="420">
+</picture>
 
-## Status
+### Use a PlayStation Portable as a second screen for Windows
 
-Working prototype. The host shows a monitor, or a virtual monitor of its own, on a PSP that is
-running the PSPdisp 0.6 application. See [the roadmap](docs/ROADMAP.md).
+Extend your desktop onto a PSP over a USB cable, and use its buttons as keyboard and mouse shortcuts.
+
+[![CI](https://github.com/rinmz/psp-sidescreen/actions/workflows/ci.yml/badge.svg)](https://github.com/rinmz/psp-sidescreen/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/rinmz/psp-sidescreen?include_prereleases&color=FFC500)](https://github.com/rinmz/psp-sidescreen/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-FFC500)](LICENSE)
+![Platform: Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-lightgrey)
+
+[**Download**](https://github.com/rinmz/psp-sidescreen/releases/latest) ·
+[Documentation](docs/USAGE.md) ·
+[Report a bug](https://github.com/rinmz/psp-sidescreen/issues/new/choose) ·
+[Contribute](CONTRIBUTING.md)
+
+</div>
+
+<br>
+
+<p align="center">
+  <img alt="The PSP Sidescreen window: Display page" src="docs/images/display.png" width="720">
+</p>
+
+## What it does
+
+- **A real extended display.** Windows sees the PSP as one more monitor. Drag windows onto it,
+  or mirror an existing monitor instead.
+- **Over USB, with no accounts and no network.** The picture is scaled on the PC and decoded by
+  the PSP's own JPEG hardware.
+- **The PSP's buttons do things on the PC.** Map any button to a media key, a shortcut or a
+  chord you record yourself (for example `Ctrl+Space` for push-to-talk, held while the button is
+  held). The analog stick can move the mouse.
+- **Four quality levels,** from raw lossless pixels to small, fast frames.
+- **A normal Windows setup.** One installer puts the program and the drivers it needs on the
+  PC, and puts the matching program on the PSP. Nothing else has to be downloaded.
+- **Keeps going.** A resolution change, <kbd>Win</kbd>+<kbd>P</kbd> or a cable that is pulled
+  out do not end the session; it carries on when the monitor or the PSP is back.
+
+<p align="center">
+  <img alt="The Controls page" src="docs/images/controls.png" width="360">
+  <img alt="The Setup page" src="docs/images/setup.png" width="360">
+</p>
 
 ## Install
 
-Run the installer (`PSP Sidescreen_<version>_x64-setup.exe`). It is a normal Windows setup: it
-installs the program and the drivers it needs, and nothing else has to be downloaded. The first
-time the program opens it asks you to connect the PSP and puts the program on it.
+1. Download `PSP.Sidescreen_<version>_x64-setup.exe` from the
+   [latest release](https://github.com/rinmz/psp-sidescreen/releases/latest) and run it.
+2. The first time the program opens, its **Setup** page asks you to connect the PSP and choose
+   *USB Connection* in the PSP's Settings. Press **Put it on my PSP**. Only the folder
+   `PSP/GAME/Sidescreen` on the Memory Stick is written to.
+3. On the PSP open **PSP Sidescreen** (Game, Memory Stick). It starts USB mode by itself. On the
+   PC press **Start**.
 
-**One step is done by hand, once per PC:** the USB driver for the PSP is not signed, so Windows
-asks you to allow it. [docs/PSP-DRIVER.md](docs/PSP-DRIVER.md) shows how, in two minutes.
-See [docs/SIGNING.md](docs/SIGNING.md) for why, and
-[docs/BUILDING.md](docs/BUILDING.md) to build the installer yourself.
+> [!IMPORTANT]
+> **One step is done by hand, once per PC.** The USB driver for the PSP is not code-signed yet,
+> so Windows asks you to allow it. After a restart with driver signature checking turned off,
+> the Setup page installs it with one button. [docs/PSP-DRIVER.md](docs/PSP-DRIVER.md) shows how
+> and why, and what to do if the PC uses BitLocker.
 
-## Use
+### Requirements
 
-Start the program (`psp-sidescreen.exe`): a window opens with a **Start** button, what the PSP
-shows (an extended screen of its own, or a monitor you already have), the screen size and the
-quality. The icon stays in the notification area when the window is closed; **Quit** in its menu
-ends the program.
-
-### Build
-
-```
-cd app && npm ci            # once
-cd ../crates/sidescreen-app
-../../app/node_modules/.bin/tauri build --no-bundle    # target/release/psp-sidescreen.exe
-```
-
-### Command line
-
-The same session can be run without the window:
-
-Start PSPdisp on the PSP and choose **Start using USB**; close PSPdisp on the PC. Then:
-
-```
-sidescreen-host run --virtual                    # the PSP gets a monitor of its own (extended)
-sidescreen-host run --virtual --quality lossless # sharpest picture
-sidescreen-host run --monitor 0                  # mirror an existing monitor instead
-sidescreen-host detach                           # remove the virtual monitor if a run left it
-```
-
-Ctrl+C ends a run and removes the virtual monitor.
-
-| Option | Meaning |
+| | |
 |---|---|
-| `--virtual` | Give the PSP a virtual monitor of its own. Needs the Virtual Display Driver. |
-| `--size WxH` | Size of the virtual monitor; the driver offers 800x600, 1366x768, 1920x1080, 2560x1440 and 3840x2160. Default 1366x768. |
-| `--quality NAME` | `lossless`, `high`, `medium` (default) or `low`. |
-| `--monitor N` | Show monitor `N` (see `sidescreen-host monitors`) when `--virtual` is not given. |
+| PC | Windows 10 or 11, 64-bit |
+| PSP | A PSP running custom firmware (developed on a PSP-2000 with 6.61 PRO-C) |
+| Cable | A USB data cable (a charge-only cable does not work) |
 
-### Quality
-
-The PSP screen has 480x272 pixels, so every picture is reduced to that size on the PC. The
-quality sets how it is then sent:
-
-| Name | How | Expected |
-|---|---|---|
-| `lossless` | raw pixels, 391 680 bytes a frame | exact picture; the most data per frame, so the lowest frame rate |
-| `high` | JPEG 92 | very close to exact |
-| `medium` | JPEG 80 | good, balanced |
-| `low` | JPEG 50 | smallest frames and the highest frame rate, with visible compression |
-
-The last column is what the settings are expected to do; frame rates per setting have not been
-measured on the console yet.
-
-## Target
-
-- PSP-2000 running custom firmware 6.61 (PRO-C Infinity).
-- Windows 11 host with a GPU that has a hardware video encoder.
-- USB cable first, Wi-Fi as a fallback.
-
-## Repository layout
+## How it works
 
 ```
-crates/   Rust: the host (`sidescreen-host`), the wire format (`sidescreen-proto`) and the
-          window's program (`sidescreen-app`, Tauri)
-app/      TypeScript: the window (React, Tailwind), designed after Handy
-assets/   the logo and the source of the app icon
-psp/      C (PSPSDK): the EBOOT.PBP that runs on the console
-docs/     architecture, roadmap, engineering standards
-scripts/  tool setup and packaging
+ Windows desktop ──► capture ──► scale to 480×272 ──► JPEG ──► USB ──► PSP (decodes, shows)
+                                                                        │
+ keyboard and mouse ◄── shortcuts ◄──────────── buttons and stick ◄─────┘
 ```
 
-## Naming
+The host is written in Rust (Desktop Duplication for capture, `rusb` for USB). The window is a
+Tauri app with a React front end. The program that runs on the PSP and the virtual display driver
+come from other open-source projects; see [Acknowledgements](#acknowledgements).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PROTOCOL.md](docs/PROTOCOL.md) have the
+details.
 
-| Thing | Name |
+## Documentation
+
+| | |
 |---|---|
-| Product | PSP Sidescreen |
-| Repository | `psp-sidescreen` |
-| Rust crates | `sidescreen-<role>`, for example `sidescreen-host`, `sidescreen-proto` |
-| PSP application folder | `PSP/GAME/Sidescreen/EBOOT.PBP` |
-| PSP module name | `sidescreen` |
-| PSP title ID | `SIDE00001` |
-
-This project is independent of the Pane repository and does not modify it.
+| [Usage](docs/USAGE.md) | Settings, quality levels, the command line |
+| [PSP driver](docs/PSP-DRIVER.md) | Installing the USB driver, once per PC |
+| [Building](docs/BUILDING.md) | Build the program and the installer yourself |
+| [Architecture](docs/ARCHITECTURE.md) · [Protocol](docs/PROTOCOL.md) | How it is put together |
+| [Roadmap](docs/ROADMAP.md) | What is done and what comes next |
+| [Signing](docs/SIGNING.md) | Why the driver is unsigned and what would change that |
 
 ## Contributing
 
-Read the [engineering standards](docs/CONTRIBUTING.md) first.
+Contributions are welcome: bug reports, a PSP model or firmware you tested, documentation, code.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first; it is short. The
+[engineering standards](docs/CONTRIBUTING.md) apply to every change. To report a security
+problem, see [SECURITY.md](SECURITY.md).
+
+## Acknowledgements
+
+PSP Sidescreen stands on other people's work, and says so:
+
+- **[PSPdisp](https://jjs.at/software/pspdisp.html)** (BSD) by Jochen Schleu: the program that
+  runs on the PSP and the wire protocol it speaks.
+- **[Virtual Display Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver)** (MIT):
+  gives the PSP a monitor of its own.
+- **[Handy](https://github.com/cjpais/Handy)** (MIT) by CJ Pais: the look of the window.
+
+Their licences are in [NOTICE.md](NOTICE.md). "PSP" and "PlayStation Portable" are trademarks of
+Sony Interactive Entertainment; this project is not affiliated with or endorsed by Sony.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE). The program that runs on the PSP, the virtual display driver and
-the design of the window come from other projects under their own licences; see
-[NOTICE.md](NOTICE.md).
+[MIT](LICENSE) © 2026 rinmz
