@@ -16,7 +16,7 @@ jobs:
     name: Build and publish the installer
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: The tag must match the version in the program
         shell: pwsh
