@@ -2775,6 +2775,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sidescreen-host",
+ "sidescreen-proto",
  "tauri",
  "tauri-build",
 ]

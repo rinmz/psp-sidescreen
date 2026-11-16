@@ -3,6 +3,28 @@
 export type Quality = "lossless" | "high" | "medium" | "low";
 export type Mode = "extended" | "mirror";
 
+/** What the PSP's buttons and stick do on the PC. */
+export interface ControlSettings {
+  /** Off until the person turns it on. */
+  enabled: boolean;
+  /** Whether the analog stick moves the mouse pointer. */
+  analogMouse: boolean;
+  /** Action id by button id; a button that is missing does nothing. */
+  buttons: Record<string, string>;
+}
+
+/** A button or an action the window offers. */
+export interface Choice {
+  id: string;
+  label: string;
+}
+
+/** What can be chosen in the controls; the program supplies it. */
+export interface ControlCatalog {
+  buttons: Choice[];
+  actions: Choice[];
+}
+
 export interface Settings {
   /** `extended`: the PSP gets a screen of its own. `mirror`: it shows an existing monitor. */
   mode: Mode;
@@ -11,6 +33,7 @@ export interface Settings {
   /** Index of the monitor to show; used when `mode` is `mirror`. */
   monitor: number;
   quality: Quality;
+  controls: ControlSettings;
 }
 
 export interface Monitor {
@@ -34,6 +57,7 @@ export interface Backend {
   getSettings(): Promise<Settings>;
   saveSettings(settings: Settings): Promise<void>;
   listMonitors(): Promise<Monitor[]>;
+  listControls(): Promise<ControlCatalog>;
   start(): Promise<void>;
   stop(): Promise<void>;
   /** Calls `listener` with every change of state; returns a function that stops listening. */
@@ -46,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   size: "1366x768",
   monitor: 0,
   quality: "medium",
+  controls: { enabled: false, analogMouse: false, buttons: {} },
 };
 
 /** Sizes the virtual display driver offers. */

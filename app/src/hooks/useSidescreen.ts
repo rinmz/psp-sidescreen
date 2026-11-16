@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   createBackend,
   type Backend,
+  type ControlCatalog,
   type Monitor,
   type SessionState,
   type Settings,
@@ -13,6 +14,7 @@ export interface Sidescreen {
   ready: boolean;
   settings: Settings;
   monitors: Monitor[];
+  catalog: ControlCatalog;
   state: SessionState;
   version: string;
   /** Changes one or more settings and remembers them. */
@@ -27,6 +29,7 @@ export function useSidescreen(): Sidescreen {
   const [ready, setReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [catalog, setCatalog] = useState<ControlCatalog>({ buttons: [], actions: [] });
   const [state, setState] = useState<SessionState>({ kind: "idle" });
   const [version, setVersion] = useState("");
 
@@ -37,9 +40,10 @@ export function useSidescreen(): Sidescreen {
     void (async () => {
       const created = await createBackend();
       backend.current = created;
-      const [loaded, found, number] = await Promise.all([
+      const [loaded, found, controls, number] = await Promise.all([
         created.getSettings(),
         created.listMonitors(),
+        created.listControls(),
         created.version(),
       ]);
       const unlisten = await created.onState(setState);
@@ -50,6 +54,7 @@ export function useSidescreen(): Sidescreen {
       stopListening = unlisten;
       setSettings(loaded);
       setMonitors(found);
+      setCatalog(controls);
       setVersion(number);
       setReady(true);
     })();
@@ -71,5 +76,5 @@ export function useSidescreen(): Sidescreen {
   const start = useCallback(() => void backend.current?.start(), []);
   const stop = useCallback(() => void backend.current?.stop(), []);
 
-  return { ready, settings, monitors, state, version, update, start, stop };
+  return { ready, settings, monitors, catalog, state, version, update, start, stop };
 }

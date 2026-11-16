@@ -7,6 +7,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use sidescreen_host::capture;
+use sidescreen_host::input::Action;
+use sidescreen_proto::Button;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::control::Control;
@@ -53,6 +55,40 @@ pub(crate) fn list_monitors() -> Result<Vec<MonitorInfo>, String> {
             height: monitor.height,
         })
         .collect())
+}
+
+/// A button or an action the window offers, by the id that is saved and the text that is shown.
+#[derive(Serialize)]
+pub(crate) struct Choice {
+    id: &'static str,
+    label: &'static str,
+}
+
+/// What can be chosen in the controls, from the host, so the window has no list of its own.
+#[derive(Serialize)]
+pub(crate) struct ControlCatalog {
+    buttons: Vec<Choice>,
+    actions: Vec<Choice>,
+}
+
+#[tauri::command]
+pub(crate) fn list_controls() -> ControlCatalog {
+    ControlCatalog {
+        buttons: Button::ALL
+            .into_iter()
+            .map(|button| Choice {
+                id: button.name(),
+                label: button.label(),
+            })
+            .collect(),
+        actions: Action::ALL
+            .into_iter()
+            .map(|action| Choice {
+                id: action.id(),
+                label: action.label(),
+            })
+            .collect(),
+    }
 }
 
 #[tauri::command]

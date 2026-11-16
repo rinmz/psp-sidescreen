@@ -1,12 +1,15 @@
 //! What the person chose, kept in a file between runs.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sidescreen_host::convert::Quality;
+use sidescreen_host::input::{Action, Controls};
 use sidescreen_host::session::Options;
+use sidescreen_proto::Button;
 
 /// What the PSP shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +42,35 @@ impl From<QualityName> for Quality {
     }
 }
 
+/// What the PSP's buttons and stick do on the PC.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub(crate) struct ControlSettings {
+    /// Whether the PSP controls the PC at all. Off until the person turns it on.
+    pub(crate) enabled: bool,
+    /// Whether the analog stick moves the mouse pointer.
+    pub(crate) analog_mouse: bool,
+    /// The action of each button, by the button's name and the action's id. A button that is
+    /// missing, or whose action is not known, does nothing.
+    pub(crate) buttons: BTreeMap<String, String>,
+}
+
+impl ControlSettings {
+    /// The controls the host runs with.
+    fn to_controls(&self) -> Controls {
+        let mut controls = Controls::new(self.enabled, self.analog_mouse);
+        for button in Button::ALL {
+            let action = self
+                .buttons
+                .get(button.name())
+                .and_then(|id| Action::from_id(id))
+                .unwrap_or(Action::Nothing);
+            controls.set(button, action);
+        }
+        controls
+    }
+}
+
 /// The settings of the window, as it sends and receives them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Settings {
@@ -48,6 +80,9 @@ pub(crate) struct Settings {
     /// Index of the monitor to show when `mode` is `mirror`.
     pub(crate) monitor: usize,
     pub(crate) quality: QualityName,
+    /// A file from before the controls existed has none; they are then off.
+    #[serde(default)]
+    pub(crate) controls: ControlSettings,
 }
 
 impl Default for Settings {
@@ -57,6 +92,7 @@ impl Default for Settings {
             size: "1366x768".to_owned(),
             monitor: 0,
             quality: QualityName::Medium,
+            controls: ControlSettings::default(),
         }
     }
 }
@@ -78,6 +114,7 @@ impl Settings {
             size,
             monitor: self.monitor,
             quality: self.quality.into(),
+            controls: self.controls.to_controls(),
         })
     }
 }
@@ -124,6 +161,11 @@ mod tests {
             size: "1920x1080".to_owned(),
             monitor: 2,
             quality: QualityName::Lossless,
+            controls: ControlSettings {
+                enabled: true,
+                analog_mouse: true,
+                buttons: BTreeMap::from([("cross".to_owned(), "enter".to_owned())]),
+            },
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
@@ -146,11 +188,21 @@ mod tests {
 
     #[test]
     fn file_written_by_the_window_is_understood() {
-        // The shape the window sends: lower-case names.
-        let text = r#"{"mode":"mirror","size":"800x600","monitor":1,"quality":"low"}"#;
+        // The shape the window sends: lower-case names, camelCase for the controls.
+        let text = r#"{"mode":"mirror","size":"800x600","monitor":1,"quality":"low",
+            "controls":{"enabled":true,"analogMouse":true,"buttons":{"cross":"left_click"}}}"#;
         let settings: Settings = serde_json::from_str(text).unwrap();
         assert_eq!(settings.mode, Mode::Mirror);
         assert_eq!(settings.quality, QualityName::Low);
+        assert!(settings.controls.enabled && settings.controls.analog_mouse);
+    }
+
+    #[test]
+    fn file_from_before_the_controls_existed_still_loads_with_them_off() {
+        let text = r#"{"mode":"extended","size":"1366x768","monitor":0,"quality":"medium"}"#;
+        let settings: Settings = serde_json::from_str(text).unwrap();
+        assert!(!settings.controls.enabled);
+        assert!(settings.controls.buttons.is_empty());
     }
 
     #[test]
@@ -182,5 +234,34 @@ mod tests {
             };
             assert!(settings.to_options().is_err(), "{bad:?} should be refused");
         }
+    }
+
+    #[test]
+    fn controls_are_off_by_default_and_every_button_does_nothing() {
+        let controls = Settings::default().to_options().unwrap().controls;
+        assert!(!controls.enabled);
+        for button in Button::ALL {
+            assert_eq!(controls.action(button), Action::Nothing);
+        }
+    }
+
+    #[test]
+    fn saved_actions_reach_the_host_and_unknown_ones_do_nothing() {
+        let settings = Settings {
+            controls: ControlSettings {
+                enabled: true,
+                analog_mouse: false,
+                buttons: BTreeMap::from([
+                    ("cross".to_owned(), "enter".to_owned()),
+                    ("circle".to_owned(), "launch_missiles".to_owned()),
+                ]),
+            },
+            ..Settings::default()
+        };
+        let controls = settings.to_options().unwrap().controls;
+        assert!(controls.enabled);
+        assert_eq!(controls.action(Button::Cross), Action::Enter);
+        assert_eq!(controls.action(Button::Circle), Action::Nothing);
+        assert_eq!(controls.action(Button::Square), Action::Nothing);
     }
 }

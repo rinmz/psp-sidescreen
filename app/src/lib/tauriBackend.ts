@@ -9,6 +9,7 @@ export const tauriBackend: Backend = {
   getSettings: () => invoke("get_settings"),
   saveSettings: (settings) => invoke("save_settings", { settings }),
   listMonitors: () => invoke("list_monitors"),
+  listControls: () => invoke("list_controls"),
   start: () => invoke("start_session"),
   stop: () => invoke("stop_session"),
   onState: (listener) =>

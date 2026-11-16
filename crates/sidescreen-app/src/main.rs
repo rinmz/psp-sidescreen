@@ -25,6 +25,7 @@ fn main() {
             commands::get_settings,
             commands::save_settings,
             commands::list_monitors,
+            commands::list_controls,
             commands::start_session,
             commands::stop_session,
         ])
