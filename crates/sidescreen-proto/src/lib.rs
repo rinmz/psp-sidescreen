@@ -19,3 +19,6 @@ pub const SCREEN_WIDTH: u32 = 480;
 
 /// Height of the PSP screen in pixels.
 pub const SCREEN_HEIGHT: u32 = 272;
+
+/// Size of an uncompressed frame: three bytes for each pixel of the screen.
+pub const RAW_FRAME_LEN: usize = SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize * 3;

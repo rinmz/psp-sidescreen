@@ -18,6 +18,9 @@ impl FrameFlags {
     pub const CONTAINS_IMAGE: Self = Self(0x0000_0001);
     /// The image is a JPEG.
     pub const IMAGE_IS_JPEG: Self = Self(0x0000_0010);
+    /// The image is raw pixels: 480x272, three bytes per pixel in blue, green, red order, rows
+    /// from the bottom up (like a Windows bitmap).
+    pub const IMAGE_IS_UNCOMPRESSED: Self = Self(0x0000_0040);
     /// Clear the screen before drawing.
     pub const CLEAR_SCREEN: Self = Self(0x0010_0000);
 
@@ -71,6 +74,17 @@ impl FrameHeader {
     pub const fn jpeg(image_size: u32) -> Self {
         Self {
             flags: FrameFlags::CONTAINS_IMAGE.union(FrameFlags::IMAGE_IS_JPEG),
+            image_size,
+            settings_size: 0,
+        }
+    }
+
+    /// Header for an uncompressed frame without settings; see
+    /// [`FrameFlags::IMAGE_IS_UNCOMPRESSED`] for the pixel layout.
+    #[must_use]
+    pub const fn uncompressed(image_size: u32) -> Self {
+        Self {
+            flags: FrameFlags::CONTAINS_IMAGE.union(FrameFlags::IMAGE_IS_UNCOMPRESSED),
             image_size,
             settings_size: 0,
         }
@@ -133,6 +147,13 @@ mod tests {
                 0x00, 0x00, 0x00, 0x00, // settings size
             ]
         );
+    }
+
+    #[test]
+    fn uncompressed_header_sets_the_raw_flag_and_not_the_jpeg_flag() {
+        let wire = FrameHeader::uncompressed(391_680).encode();
+        assert_eq!(&wire[4..8], [0x41, 0x00, 0x00, 0x00]);
+        assert_eq!(&wire[8..12], 391_680_u32.to_le_bytes());
     }
 
     #[test]

@@ -35,7 +35,11 @@ A 16-byte header, then `image_size` bytes of image, then `settings_size` bytes o
 | 12 | 4 | settings_size | bytes of settings after the image; `0` for none |
 
 Flags used: `0x00000001` the frame carries an image; `0x00000010` the image is a JPEG;
-`0x00100000` clear the screen first. A JPEG frame is `0x11`. The image is 480x272.
+`0x00000040` the image is uncompressed; `0x00100000` clear the screen first. A JPEG frame is
+`0x11`, an uncompressed frame `0x41`. The image is 480x272.
+
+An uncompressed image is 480 x 272 x 3 = 391 680 bytes: blue, green, red for each pixel, rows
+from the bottom up, like a Windows bitmap (`compressConvertBmp` in PSPdisp's `compress.c`).
 
 ## Response (PSP to host)
 
