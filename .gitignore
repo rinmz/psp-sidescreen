@@ -8,6 +8,9 @@
 *.prx
 *.PBP
 *.SFO
+# ...except the PSPdisp files this project ships, and the package made from them.
+!/psp/vendor/**
+!/psp/package/**
 
 # Window (frontend)
 /app/node_modules/
