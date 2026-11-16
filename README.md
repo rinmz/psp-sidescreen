@@ -52,6 +52,8 @@ measured on the console yet.
 
 ```
 crates/   Rust: the Windows host and the protocol shared with the PSP side
+app/      TypeScript: the window (React, Tailwind), designed after Handy
+assets/   the logo and the source of the app icon
 psp/      C (PSPSDK): the EBOOT.PBP that runs on the console
 docs/     architecture, roadmap, engineering standards
 scripts/  tool setup and packaging

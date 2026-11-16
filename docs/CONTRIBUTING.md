@@ -24,6 +24,20 @@ These rules apply to every change, regardless of who writes it.
 - Naming: `snake_case` functions prefixed with their module (`usb_`, `video_`, `net_`),
   `UPPER_SNAKE` constants, one header per module.
 
+## Window (TypeScript, `app/`)
+
+- Strict TypeScript, no `any`. Components are small and do one job; the state of the window lives
+  in one hook (`useSidescreen`) and the program behind it is reached only through the `Backend`
+  interface, which has a stand-in so the window can be checked in a plain browser.
+- Colours come only from `src/styles/theme.css`. A hex value appears there once, as a
+  light/dark pair, and components use the tokens (`bg-brand`, `text-ink-2`, ...).
+- Every control has an accessible name and a visible focus ring; motion respects
+  `prefers-reduced-motion`.
+- The look follows [Handy](https://github.com/cjpais/Handy) (MIT): a sidebar, titled groups of
+  settings rows, a status bar. The yellow is the logo's.
+- Gates, run in `app/`: `npm run typecheck`, `npm run lint`, `npm run format:check`,
+  `npm run build`.
+
 ## Tests
 
 - Protocol and framing code is covered by unit tests, including malformed and truncated input.
