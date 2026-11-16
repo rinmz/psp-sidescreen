@@ -57,5 +57,13 @@ stored.
   DPI scaling taken into account (the cause of the drift seen with PSPdisp is suspected to be
   missing DPI awareness; verified when the host exists).
 - **Frames may be dropped before the encoder, never after it.** Keeps latency bounded.
+- **The process is per-monitor DPI aware, and a capture is released before it is remade.**
+  Found on the console on 2026-11-16 with a virtual monitor whose resolution was changed while
+  the host ran. (1) A program that is not DPI aware keeps seeing the monitor sizes it saw at
+  start, so a resolution change went unnoticed and the picture froze; the PSP then dimmed
+  itself because no new frames arrived. (2) Once Windows reports the loss, remaking the capture
+  beside the old one fails at once, because the old one keeps Windows describing the monitor as
+  it was; it works when the old capture is dropped first (`Capturer::reopen`). Both are hardware
+  behaviour and could not be put in a unit test; the size comparison is tested.
 - **Independent of Pane.** The host can capture any monitor, including one that another
   program owns, without changing that program or its driver.

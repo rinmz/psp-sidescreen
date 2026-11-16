@@ -22,13 +22,16 @@ use windows::Win32::Graphics::Dxgi::{
     DXGI_OUTDUPL_POINTER_SHAPE_INFO, DXGI_OUTDUPL_POINTER_SHAPE_TYPE_COLOR, IDXGIAdapter,
     IDXGIAdapter1, IDXGIFactory1, IDXGIOutput, IDXGIOutput1, IDXGIOutputDuplication, IDXGIResource,
 };
-use windows::core::Interface;
+use windows::Win32::Graphics::Gdi::{DEVMODEW, ENUM_CURRENT_SETTINGS, EnumDisplaySettingsW};
+use windows::core::{Interface, PCWSTR};
 
 /// Why capture failed.
 #[derive(Debug)]
 pub enum CaptureError {
     /// No monitor has the requested index.
     NoSuchMonitor(usize),
+    /// The monitor with this name is not on the desktop.
+    MonitorGone(String),
     /// Windows ended the duplication (a secure desktop, a mode change); open it again.
     AccessLost,
     /// Any other Windows error.
@@ -39,6 +42,7 @@ impl fmt::Display for CaptureError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NoSuchMonitor(index) => write!(f, "there is no monitor {index}"),
+            Self::MonitorGone(name) => write!(f, "the monitor {name} is no longer on the desktop"),
             Self::AccessLost => f.write_str("Windows ended the screen capture"),
             Self::Windows(error) => write!(f, "screen capture failed: {error}"),
         }
@@ -72,6 +76,66 @@ pub struct Monitor {
     pub left: i32,
     /// Top edge on the virtual desktop.
     pub top: i32,
+}
+
+/// What a running capture finds when it looks at its monitor again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Check {
+    /// The monitor is as it was.
+    Unchanged,
+    /// The monitor changed size; capture it again.
+    Resized,
+    /// The monitor is no longer on the desktop.
+    Gone,
+}
+
+/// Compares the size a capture was made at with the size the monitor has now, `None` if the
+/// monitor is not there any more.
+fn check(size: (u32, u32), current: Option<(u32, u32)>) -> Check {
+    match current {
+        None => Check::Gone,
+        Some(now) if now == size => Check::Unchanged,
+        Some(_) => Check::Resized,
+    }
+}
+
+/// The size of the mode `name` is running in now, from Windows' display settings. DXGI's own
+/// list is not used because a running program can keep seeing its old answer.
+fn current_size(name: &str) -> Option<(u32, u32)> {
+    let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    let mut devmode = DEVMODEW {
+        // The structure is a few hundred bytes.
+        dmSize: u16::try_from(size_of::<DEVMODEW>()).unwrap_or(0),
+        ..Default::default()
+    };
+    // SAFETY: the name is NUL-terminated and `devmode` is valid with its size field set.
+    let found = unsafe {
+        EnumDisplaySettingsW(
+            PCWSTR(wide.as_ptr()),
+            ENUM_CURRENT_SETTINGS,
+            &raw mut devmode,
+        )
+    };
+    found
+        .as_bool()
+        .then_some((devmode.dmPelsWidth, devmode.dmPelsHeight))
+}
+
+/// The name of an output, from its description.
+fn monitor_name(output: &IDXGIOutput) -> String {
+    // SAFETY: a plain COM call on an interface the caller holds.
+    let desc = unsafe { output.GetDesc() };
+    desc.map_or_else(
+        |_| String::new(),
+        |desc| {
+            let length = desc
+                .DeviceName
+                .iter()
+                .position(|&unit| unit == 0)
+                .unwrap_or(desc.DeviceName.len());
+            String::from_utf16_lossy(&desc.DeviceName[..length])
+        },
+    )
 }
 
 /// One captured picture, 32 bits per pixel in B, G, R, A order.
@@ -158,6 +222,7 @@ pub struct Capturer {
     context: ID3D11DeviceContext,
     duplication: IDXGIOutputDuplication,
     staging: ID3D11Texture2D,
+    name: String,
     width: u32,
     height: u32,
     pointer: Pointer,
@@ -183,7 +248,29 @@ impl Capturer {
             Ok(true)
         })?;
         let (adapter, output) = found.ok_or(CaptureError::NoSuchMonitor(index))?;
+        Self::start(&adapter, &output)
+    }
 
+    /// Starts capturing the monitor Windows currently calls `name`, for example when the size
+    /// of a monitor has changed and its capture has to be made again.
+    ///
+    /// # Errors
+    ///
+    /// [`CaptureError::MonitorGone`] if no monitor has that name, otherwise as [`open`](Self::open).
+    pub fn open_by_name(name: &str) -> Result<Self, CaptureError> {
+        let mut found = None;
+        for_each_output(|adapter, output| {
+            if monitor_name(output) == name {
+                found = Some((adapter.clone(), output.clone()));
+                return Ok(false);
+            }
+            Ok(true)
+        })?;
+        let (adapter, output) = found.ok_or_else(|| CaptureError::MonitorGone(name.to_owned()))?;
+        Self::start(&adapter, &output)
+    }
+
+    fn start(adapter: &IDXGIAdapter1, output: &IDXGIOutput) -> Result<Self, CaptureError> {
         // SAFETY: every out-parameter points at a local that lives through the call, and the
         // interfaces are reference counted by the `windows` crate.
         unsafe {
@@ -232,11 +319,43 @@ impl Capturer {
                 context,
                 duplication,
                 staging,
+                name: monitor_name(output),
                 width,
                 height,
                 pointer: Pointer::default(),
             })
         }
+    }
+
+    /// Ends this capture and starts a new one of the same monitor, for example after a change of
+    /// resolution.
+    ///
+    /// The old capture is released first. While it is alive Windows goes on describing the
+    /// monitor as it was, so a new capture made beside it fails at once.
+    ///
+    /// # Errors
+    ///
+    /// As [`open_by_name`](Self::open_by_name).
+    pub fn reopen(self) -> Result<Self, CaptureError> {
+        let name = self.name.clone();
+        drop(self);
+        Self::open_by_name(&name)
+    }
+
+    /// Windows' name for the captured monitor, such as `\.\DISPLAY5`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Looks at the monitor again and says whether this capture still fits it.
+    ///
+    /// Windows does not always report a changed resolution as an error: a capture of a virtual
+    /// monitor can go on without ever delivering another frame. Calling this now and then
+    /// catches that.
+    ///
+    pub fn check(&self) -> Check {
+        check(self.size(), current_size(&self.name))
     }
 
     /// Size of the captured monitor in physical pixels.
@@ -476,6 +595,22 @@ mod tests {
         draw_pointer(&mut frame, &pointer_at(100, 100));
         assert_eq!(pixel(&frame, 3, 3), [255, 255, 255]);
         assert_eq!(pixel(&frame, 0, 3), [128, 128, 128]);
+    }
+
+    #[test]
+    fn unchanged_size_is_unchanged() {
+        assert_eq!(check((1366, 768), Some((1366, 768))), Check::Unchanged);
+    }
+
+    #[test]
+    fn changed_size_is_reported() {
+        // The case seen on the console: the virtual monitor went from 1366x768 to 1920x1080.
+        assert_eq!(check((1366, 768), Some((1920, 1080))), Check::Resized);
+    }
+
+    #[test]
+    fn monitor_that_left_the_desktop_is_gone() {
+        assert_eq!(check((1366, 768), None), Check::Gone);
     }
 
     #[test]

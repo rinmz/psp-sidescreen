@@ -13,8 +13,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use sidescreen_host::capture::{self, CaptureError, Capturer, Frame};
+use sidescreen_host::capture::{self, CaptureError, Capturer, Check, Frame};
 use sidescreen_host::convert::{Converter, Picture, Quality};
+use sidescreen_host::dpi;
 use sidescreen_host::link::Link;
 use sidescreen_host::monitor::{self, VirtualMonitor};
 use sidescreen_host::usb::UsbPipe;
@@ -27,6 +28,8 @@ const HELLO_SETTLE: Duration = Duration::from_millis(500);
 const CAPTURE_WAIT_MS: u32 = 33;
 /// A picture is sent again after this long without change, so the PSP knows the host is alive.
 const KEEP_ALIVE: Duration = Duration::from_millis(500);
+/// How often the captured monitor is looked at again, to notice a change of resolution.
+const RECHECK_EVERY: Duration = Duration::from_millis(500);
 /// Quality when none is given.
 const DEFAULT_QUALITY: Quality = Quality::Medium;
 /// Size of the virtual monitor when none is given. Small text stays readable on the PSP's
@@ -39,6 +42,8 @@ const USAGE: &str = "usage: sidescreen-host monitors | detach | probe | send <fi
 run [--virtual] [--size WxH] [--monitor N] [--quality lossless|high|medium|low]";
 
 fn main() -> ExitCode {
+    // Before anything asks Windows about monitors; see the `dpi` module.
+    dpi::make_process_aware();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let result = match args.as_slice() {
@@ -180,18 +185,33 @@ fn run(options: &[&str]) -> Result<(), Box<dyn Error>> {
     let mut last_sent = Instant::now();
     let mut sent = 0_u32;
     let mut window = Instant::now();
+    let mut last_check = Instant::now();
 
     while !stop.load(Ordering::SeqCst) {
         let changed = match capturer.next_frame(CAPTURE_WAIT_MS, &mut frame) {
             Ok(changed) => changed,
             Err(CaptureError::AccessLost) => {
                 // A secure desktop or a mode change ends the duplication; start it again.
+                println!("the capture was lost; starting it again");
                 std::thread::sleep(Duration::from_millis(250));
-                capturer = Capturer::open(index)?;
+                capturer = capturer.reopen()?;
                 continue;
             }
             Err(error) => return Err(error.into()),
         };
+        if last_check.elapsed() >= RECHECK_EVERY {
+            last_check = Instant::now();
+            match capturer.check() {
+                Check::Unchanged => {}
+                Check::Resized => {
+                    capturer = capturer.reopen()?;
+                    let (width, height) = capturer.size();
+                    println!("the monitor is now {width}x{height}; capturing it again");
+                    continue;
+                }
+                Check::Gone => return Err("the monitor left the desktop".into()),
+            }
+        }
         if frame.bgra.is_empty() || !(changed || last_sent.elapsed() >= KEEP_ALIVE) {
             continue;
         }
