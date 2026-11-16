@@ -12,3 +12,6 @@
 # Window (frontend)
 /app/node_modules/
 /app/dist/
+
+# Tauri generates these when it builds
+/crates/sidescreen-app/gen/

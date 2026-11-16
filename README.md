@@ -9,6 +9,23 @@ running the PSPdisp 0.6 application. See [the roadmap](docs/ROADMAP.md).
 
 ## Use
 
+Start the program (`psp-sidescreen.exe`): a window opens with a **Start** button, what the PSP
+shows (an extended screen of its own, or a monitor you already have), the screen size and the
+quality. The icon stays in the notification area when the window is closed; **Quit** in its menu
+ends the program.
+
+### Build
+
+```
+cd app && npm ci            # once
+cd ../crates/sidescreen-app
+../../app/node_modules/.bin/tauri build --no-bundle    # target/release/psp-sidescreen.exe
+```
+
+### Command line
+
+The same session can be run without the window:
+
 Start PSPdisp on the PSP and choose **Start using USB**; close PSPdisp on the PC. Then:
 
 ```
@@ -51,7 +68,8 @@ measured on the console yet.
 ## Repository layout
 
 ```
-crates/   Rust: the Windows host and the protocol shared with the PSP side
+crates/   Rust: the host (`sidescreen-host`), the wire format (`sidescreen-proto`) and the
+          window's program (`sidescreen-app`, Tauri)
 app/      TypeScript: the window (React, Tailwind), designed after Handy
 assets/   the logo and the source of the app icon
 psp/      C (PSPSDK): the EBOOT.PBP that runs on the console

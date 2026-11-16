@@ -22,6 +22,15 @@ Windows host                                     PSP (CFW 6.61 PRO-C)
 └─────────────────────────────┘
 ```
 
+## Components
+
+| Component | Language | Responsibility |
+|---|---|---|
+| `sidescreen-proto` | Rust | The wire format: frame header, response, hello. No I/O, no dependencies. |
+| `sidescreen-host` | Rust | Everything on the PC: `monitor` (the virtual screen), `capture` (Desktop Duplication and the pointer), `convert` (reduction, JPEG or raw), `link` (the conversation with the PSP behind a `Pipe` trait), `usb` (the real device), `session` (Start to Stop, with waiting and reconnecting). Also the command line. |
+| `sidescreen-app` | Rust (Tauri) | The program a person runs: settings file, the commands the window calls, the session thread, the tray icon. |
+| `app/` | TypeScript (React, Tailwind) | The window. It reaches the program only through the `Backend` interface, so it can be checked in a plain browser with a stand-in. |
+
 ## Resolution policy
 
 The PSP screen is **480x272** and the decoder on the console works at that size, so what goes

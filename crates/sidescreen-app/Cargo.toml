@@ -1,0 +1,24 @@
+[package]
+name = "sidescreen-app"
+description = "The PSP Sidescreen window and tray icon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "psp-sidescreen"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sidescreen-host = { path = "../sidescreen-host" }
+tauri = { version = "2", features = ["tray-icon"] }
+
+[lints]
+workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

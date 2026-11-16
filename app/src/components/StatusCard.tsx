@@ -51,7 +51,10 @@ export function describe(state: SessionState): View {
         icon: CheckCircle2,
         tone: "good",
         title: "Showing on your PSP",
-        hint: `${state.fps} frames per second, ${state.width}×${state.height}.`,
+        hint:
+          state.fps === 0
+            ? `Sending the first picture, ${state.width}×${state.height}.`
+            : `${state.fps} frames per second, ${state.width}×${state.height}.`,
       };
     case "reconnecting":
       return {

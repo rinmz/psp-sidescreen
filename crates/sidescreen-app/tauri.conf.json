@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PSP Sidescreen",
+  "version": "0.1.0",
+  "identifier": "dev.rinmz.sidescreen",
+  "build": {
+    "frontendDist": "../../app/dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev --prefix ../app",
+    "beforeBuildCommand": "npm run build --prefix ../app"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "PSP Sidescreen",
+        "width": 860,
+        "height": 620,
+        "minWidth": 720,
+        "minHeight": 520,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
