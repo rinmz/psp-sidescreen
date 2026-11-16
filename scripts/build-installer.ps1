@@ -30,7 +30,8 @@ cargo build --release -p sidescreen-setup; Check 'cargo build sidescreen-setup'
 
 Step 'Gathering what the installer carries'
 $resources = Join-Path $root 'crates\sidescreen-app\resources'
-if (Test-Path $resources) { Remove-Item -Recurse -Force $resources }
+# README.md stays: Tauri needs the folder to exist and not be empty, even to check the code.
+if (Test-Path $resources) { Get-ChildItem $resources -Exclude 'README.md' | Remove-Item -Recurse -Force }
 New-Item -ItemType Directory -Force "$resources\drivers\vdd", "$resources\drivers\psp", "$resources\psp" | Out-Null
 Copy-Item 'target\release\sidescreen-setup.exe' $resources
 Copy-Item 'drivers\vdd\*' "$resources\drivers\vdd"

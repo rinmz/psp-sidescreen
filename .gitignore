@@ -20,5 +20,6 @@
 /crates/sidescreen-app/gen/
 
 # Gathered by scripts/build-installer.ps1
-/crates/sidescreen-app/resources/
+/crates/sidescreen-app/resources/*
+!/crates/sidescreen-app/resources/README.md
 /drivers/vdd/
