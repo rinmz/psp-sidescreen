@@ -468,9 +468,9 @@ checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "ctrlc"
-version = "3.5.2"
+version = "3.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0b1fab2ae45819af2d0731d60f2afe17227ebb1a1538a236da84c93e9a60162"
+checksum = "11247e6c4f83c2b15748f4873805483deaa2bbc855e773817c07a9f987f55c62"
 dependencies = [
  "dispatch2",
  "nix",
@@ -745,14 +745,14 @@ dependencies = [
 
 [[package]]
 name = "fast_image_resize"
-version = "5.1.4"
+version = "6.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d372ab3252d8f162d858d675a3d88a8c33ba24a6238837c50c8851911c7e89cd"
+checksum = "f056f6b866ac980e0ebf973c6579170fa03285cb79d448435bd4d8fa2a74b511"
 dependencies = [
  "cfg-if",
  "document-features",
  "num-traits",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -1574,9 +1574,9 @@ dependencies = [
 
 [[package]]
 name = "jpeg-encoder"
-version = "0.6.1"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b454d911ac55068f53495488d8ccd0646eaa540c033a28ee15b07838afafb01f"
+checksum = "a0370574b86f7eca156b9f298392b5e69a23f8c86f3f865add60bbc2e79467a6"
 
 [[package]]
 name = "js-sys"

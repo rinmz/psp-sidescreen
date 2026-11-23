@@ -9,8 +9,8 @@ license.workspace = true
 
 [dependencies]
 ctrlc = "3.5.2"
-fast_image_resize = "5.1.4"
-jpeg-encoder = "0.6.1"
+fast_image_resize = "6.2.0"
+jpeg-encoder = "0.7.1"
 rusb = { version = "0.9.4", features = ["vendored"] }
 sidescreen-proto = { version = "0.1.0", path = "../sidescreen-proto" }
 windows = { version = "0.62.2", features = ["Win32_Devices_Display", "Win32_Foundation", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_UI_Input_KeyboardAndMouse"] }
